@@ -1,6 +1,8 @@
 streamlit>=1.35.0
+streamlit-ketcher
 rdkit
 py3Dmol
+requests
 numpy
 pandas
 altair
