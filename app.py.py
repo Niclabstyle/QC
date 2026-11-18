@@ -309,6 +309,218 @@ def buscar_pubchem(nombre: str):
 
 
 @st.cache_data(show_spinner=False)
+def calcular_huckel_tom(smiles: str):
+    """Resuelve H*c = E*c (Método de Hückel con parámetros de Streitwieser) sobre el sistema pi."""
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+
+    pi_atoms = []
+    pi_electrons = 0
+    h_params = []
+
+    for atom in mol.GetAtoms():
+        hyb = atom.GetHybridization()
+        if hyb not in (Chem.HybridizationType.SP2, Chem.HybridizationType.SP):
+            continue
+        sym = atom.GetSymbol()
+        if sym == "C":
+            n_e, h_x = 1, 0.0
+        elif sym == "N":
+            if atom.GetIsAromatic() and (atom.GetTotalNumHs() > 0 or atom.GetDegree() == 3):
+                n_e, h_x = 2, 1.5
+            elif not atom.GetIsAromatic() and not any(
+                b.GetBondType() in (Chem.BondType.DOUBLE, Chem.BondType.TRIPLE) for b in atom.GetBonds()
+            ):
+                n_e, h_x = 2, 1.5
+            else:
+                n_e, h_x = 1, 0.5
+        elif sym == "O":
+            if atom.GetDegree() == 1:
+                n_e, h_x = 1, 1.0
+            else:
+                n_e, h_x = 2, 2.0
+        elif sym == "S":
+            if atom.GetDegree() == 1:
+                n_e, h_x = 1, 0.5
+            else:
+                n_e, h_x = 2, 1.0
+        else:
+            continue
+
+        pi_atoms.append(atom.GetIdx())
+        pi_electrons += n_e
+        h_params.append(h_x)
+
+    n = len(pi_atoms)
+    if n < 2:
+        return None
+
+    idx_map = {atom_idx: i for i, atom_idx in enumerate(pi_atoms)}
+    # Construimos M donde H = alpha*I + beta*M; como beta < 0, diagonalizamos -M
+    mat = np.zeros((n, n), dtype=float)
+    for i, h_val in enumerate(h_params):
+        mat[i, i] = h_val
+
+    for bond in mol.GetBonds():
+        a1, a2 = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
+        if a1 in idx_map and a2 in idx_map:
+            i, j = idx_map[a1], idx_map[a2]
+            s1 = mol.GetAtomWithIdx(a1).GetSymbol()
+            s2 = mol.GetAtomWithIdx(a2).GetSymbol()
+            k_xy = 1.0 if (s1 == "C" and s2 == "C") else 0.85
+            mat[i, j] = k_xy
+            mat[j, i] = k_xy
+
+    # Autovalores en orden ascendente de energía (en unidades de |beta|, con alpha = -6.0 eV y |beta| = 2.4 eV)
+    eigvals, eigvecs = np.linalg.eigh(-mat)
+
+    alpha_ev = -6.0
+    beta_abs_ev = 2.4
+
+    n_occ = min(n, (pi_electrons + 1) // 2)
+    homo_idx = max(0, n_occ - 1)
+    lumo_idx = min(n - 1, homo_idx + 1)
+
+    orbitales = []
+    for k in range(n):
+        e_beta = float(eigvals[k])
+        e_ev = round(alpha_ev + e_beta * beta_abs_ev, 3)
+        if k < homo_idx:
+            occ = 2
+            tipo = "Ocupado (σ/π)"
+        elif k == homo_idx:
+            occ = 1 if (pi_electrons % 2 == 1) else 2
+            tipo = "HOMO"
+        elif k == lumo_idx and lumo_idx > homo_idx:
+            occ = 0
+            tipo = "LUMO"
+        else:
+            occ = 0
+            tipo = "Virtual (π*)"
+
+        orbitales.append(
+            {
+                "Orbital": f"Ψ{k + 1}",
+                "Índice": k + 1,
+                "Energía (|β|)": round(e_beta, 3),
+                "Energía (eV)": e_ev,
+                "Ocupación": occ,
+                "Tipo": tipo,
+            }
+        )
+
+    homo_ev = orbitales[homo_idx]["Energía (eV)"]
+    lumo_ev = orbitales[lumo_idx]["Energía (eV)"] if lumo_idx > homo_idx else homo_ev
+    gap_ev = round(abs(lumo_ev - homo_ev), 3)
+    gap_beta = round(abs(orbitales[lumo_idx]["Energía (|β|)"] - orbitales[homo_idx]["Energía (|β|)"]), 3)
+
+    # Descriptores de DFT conceptual (Teorema de Koopmans)
+    i_pot = -homo_ev
+    e_aff = -lumo_ev
+    mu_chem = round(-(i_pot + e_aff) / 2.0, 3)
+    eta_hard = round(max(0.01, (i_pot - e_aff) / 2.0), 3)
+    omega_elec = round((mu_chem**2) / (2.0 * eta_hard), 3)
+
+    # Densidad electrónica HOMO (c_i^2) por átomo del sistema pi
+    homo_vec = eigvecs[:, homo_idx]
+    lumo_vec = eigvecs[:, lumo_idx]
+    densidad_atoms = []
+    for i, a_idx in enumerate(pi_atoms):
+        atom = mol.GetAtomWithIdx(a_idx)
+        densidad_atoms.append(
+            {
+                "ID Átomo": a_idx,
+                "Átomo": f"{atom.GetSymbol()}#{a_idx}",
+                "c² (HOMO)": round(float(homo_vec[i] ** 2), 4),
+                "c² (LUMO)": round(float(lumo_vec[i] ** 2), 4),
+            }
+        )
+
+    return {
+        "n_pi_atoms": n,
+        "pi_electrons": pi_electrons,
+        "orbitales": orbitales,
+        "homo_ev": homo_ev,
+        "lumo_ev": lumo_ev,
+        "gap_ev": gap_ev,
+        "gap_beta": gap_beta,
+        "mu_chem": mu_chem,
+        "eta_hard": eta_hard,
+        "omega_elec": omega_elec,
+        "densidad_atoms": densidad_atoms,
+    }
+
+
+def calcular_tcc(d_electrons: int, geometria: str, campo: str):
+    """Calcula ocupación, EECC (CFSE), electrones desapareados y momento magnético."""
+    if "Octaédrica" in geometria:
+        if "Alto" in campo:
+            t2g = min(3, d_electrons) + max(0, d_electrons - 5)
+            eg = max(0, min(2, d_electrons - 3)) + max(0, d_electrons - 8)
+        else:
+            t2g = min(6, d_electrons)
+            eg = max(0, d_electrons - 6)
+        eecc = round(-0.4 * t2g + 0.6 * eg, 2)
+        unpaired = (min(3, t2g) - max(0, t2g - 3)) + (min(2, eg) - max(0, eg - 2))
+        niveles = [
+            {"Nivel": "t2g (dxy, dxz, dyz)", "Energía (Δo)": -0.4, "Electrones": t2g},
+            {"Nivel": "eg (dx²-y², dz²)", "Energía (Δo)": 0.6, "Electrones": eg},
+        ]
+        unidad = "Δo"
+    elif "Tetraédrica" in geometria:
+        # Tetraédrica siempre es campo débil (Delta_t ≈ 4/9 Delta_o)
+        e_orb = min(2, d_electrons) + max(0, min(2, d_electrons - 5))
+        t2_orb = max(0, min(3, d_electrons - 2)) + max(0, d_electrons - 7)
+        eecc = round(-0.6 * e_orb + 0.4 * t2_orb, 2)
+        unpaired = (min(2, e_orb) - max(0, e_orb - 2)) + (min(3, t2_orb) - max(0, t2_orb - 3))
+        niveles = [
+            {"Nivel": "e (dx²-y², dz²)", "Energía (Δo)": -0.6, "Electrones": e_orb},
+            {"Nivel": "t2 (dxy, dxz, dyz)", "Energía (Δo)": 0.4, "Electrones": t2_orb},
+        ]
+        unidad = "Δt"
+    else:
+        # Cuadrada plana (D4h): 4 niveles
+        rem = d_electrons
+        if "Bajo" in campo:
+            n_xz_yz = min(4, rem); rem -= n_xz_yz
+            n_z2 = min(2, rem); rem -= n_z2
+            n_xy = min(2, rem); rem -= n_xy
+            n_x2y2 = rem
+        else:
+            n_xz_yz = min(2, rem); rem -= n_xz_yz
+            n_z2 = min(1, rem); rem -= n_z2
+            n_xy = min(1, rem); rem -= n_xy
+            n_x2y2 = min(1, rem); rem -= n_x2y2
+            if rem > 0:
+                add = min(2, rem); n_xz_yz += add; rem -= add
+            if rem > 0:
+                add = min(1, rem); n_z2 += add; rem -= add
+            if rem > 0:
+                add = min(1, rem); n_xy += add; rem -= add
+            if rem > 0:
+                n_x2y2 += rem
+
+        eecc = round(-0.514 * n_xz_yz - 0.428 * n_z2 + 0.228 * n_xy + 1.228 * n_x2y2, 3)
+        unpaired = (
+            (min(2, n_xz_yz) - max(0, n_xz_yz - 2))
+            + (n_z2 % 2)
+            + (n_xy % 2)
+            + (n_x2y2 % 2)
+        )
+        niveles = [
+            {"Nivel": "eg (dxz, dyz)", "Energía (Δo)": -0.514, "Electrones": n_xz_yz},
+            {"Nivel": "a1g (dz²)", "Energía (Δo)": -0.428, "Electrones": n_z2},
+            {"Nivel": "b2g (dxy)", "Energía (Δo)": 0.228, "Electrones": n_xy},
+            {"Nivel": "b1g (dx²-y²)", "Energía (Δo)": 1.228, "Electrones": n_x2y2},
+        ]
+        unidad = "Δo"
+
+    mu_b = round(float(np.sqrt(unpaired * (unpaired + 2))), 2)
+    return {"eecc": eecc, "unidad": unidad, "unpaired": unpaired, "mu_b": mu_b, "niveles": niveles}
+
+
+@st.cache_data(show_spinner=False)
 def analizar_molecula(smiles: str):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
@@ -317,7 +529,7 @@ def analizar_molecula(smiles: str):
     smiles_can = Chem.MolToSmiles(mol)
     formula = rdMolDescriptors.CalcMolFormula(mol)
     pm = Descriptors.MolWt(mol)
-    logp = Descriptors.MolLogP(mol)  # Wildman-Crippen LogP (WLOGP)
+    logp = Descriptors.MolLogP(mol)
     tpsa = Descriptors.TPSA(mol)
     hbd = Descriptors.NumHDonors(mol)
     hba = Descriptors.NumHAcceptors(mol)
@@ -325,14 +537,12 @@ def analizar_molecula(smiles: str):
     anillos_arom = rdMolDescriptors.CalcNumAromaticRings(mol)
     qed_score = QED.qed(mol)
 
-    # Solubilidad acuosa ESOL (Delaney 2004)
     n_heavy = mol.GetNumHeavyAtoms()
     n_arom_atoms = sum(1 for a in mol.GetAtoms() if a.GetIsAromatic())
     ap = (n_arom_atoms / n_heavy) if n_heavy > 0 else 0.0
     log_s = round(0.16 - 0.63 * logp - 0.0062 * pm + 0.066 * rot_bonds - 0.74 * ap, 2)
     sol_mg_ml = (10**log_s) * pm
 
-    # Alertas estructurales PAINS / Brenk
     catalogo = obtener_catalogo_alertas()
     alertas = [m.GetDescription() for m in catalogo.GetMatches(mol)]
 
@@ -468,9 +678,7 @@ def top_similares_catalogo(smiles_objetivo: str, catalogo: dict, top_n: int = 2)
 
 
 def construir_boiled_egg(tpsa_val: float, wlogp_val: float, nombre_mol: str):
-    """Genera el gráfico BOILED-Egg (TPSA vs WLOGP) en Altair."""
     t = np.linspace(0, 2 * np.pi, 120)
-    # Elipse HIA (absorción gastrointestinal) y BBB (barrera hematoencefálica)
     df_hia = pd.DataFrame(
         {"TPSA": 71.0 + 71.0 * np.cos(t), "WLOGP": 2.3 + 4.1 * np.sin(t), "order": np.arange(len(t)), "Zona": "HIA (Absorción GI)"}
     )
@@ -494,11 +702,7 @@ def construir_boiled_egg(tpsa_val: float, wlogp_val: float, nombre_mol: str):
     capa_punto = (
         alt.Chart(df_punto)
         .mark_point(size=180, filled=True, color="#84CC16", stroke="#ffffff", strokeWidth=1.5)
-        .encode(
-            x="TPSA:Q",
-            y="WLOGP:Q",
-            tooltip=["Compuesto", "TPSA", "WLOGP"],
-        )
+        .encode(x="TPSA:Q", y="WLOGP:Q", tooltip=["Compuesto", "TPSA", "WLOGP"])
     )
 
     return (capa_elipses + capa_punto).properties(height=210, background="transparent").configure_view(stroke=None)
@@ -594,11 +798,11 @@ def construir_html_3d(
 st.markdown(
     """
 <div class="hero-box">
-    <div class="badge-pill">🌿 Green Lab & Quantum Core v6.5</div>
+    <div class="badge-pill">🌿 Green Lab & Quantum Core v7.0</div>
     <div class="brand-title">PharmaChem AI Studio</div>
     <div class="hero-desc">
-        Entorno quimioinformático interactivo con PubChem, editor molecular visual, comparador A vs B,
-        mapa BOILED-Egg, solubilidad ESOL, alertas PAINS/Brenk y potencial electrostático (ESP).
+        Entorno quimioinformático interactivo con PubChem, editor molecular, comparador A vs B,
+        química cuántica (Schrödinger / TOM / TCC), mapa BOILED-Egg y potencial electrostático (ESP).
     </div>
 </div>
 """,
@@ -814,9 +1018,7 @@ else:
         max_abs_q = max([abs(q) for q in cargas_esp] + [0.25])
         carga_max = max(cargas_esp) if cargas_esp else 0.0
 
-        homo_est = round(-6.85 + (anillos_arom * 0.32) + (hba * 0.08), 2)
-        lumo_est = round(-1.15 - (anillos_arom * 0.28) - (hbd * 0.06), 2)
-        band_gap = round(abs(lumo_est - homo_est), 2)
+        tom_res = calcular_huckel_tom(smiles_activo)
 
         st.markdown(
             f"""
@@ -863,11 +1065,12 @@ else:
         selected_atom_id = -1
 
         with col_analisis:
-            tab_quant, tab_spec, tab_adme = st.tabs(
+            tab_quant, tab_qm, tab_spec, tab_adme = st.tabs(
                 [
-                    "⚛️ Cargas & Tabla Atómica",
-                    "📈 Espectros Cohesionados",
-                    "💊 ADME, BOILED-Egg & Alertas",
+                    "⚛️ Cargas & Tabla",
+                    "🌌 Cuántica (TOM / TCC)",
+                    "📈 Espectros",
+                    "💊 ADME & BOILED-Egg",
                 ]
             )
 
@@ -884,16 +1087,11 @@ else:
                     unsafe_allow_html=True,
                 )
 
-                q1, q2, q3 = st.columns(3)
-                q1.metric("HOMO (Est. empírica)", f"{homo_est} eV")
-                q2.metric("LUMO (Est. empírica)", f"{lumo_est} eV")
-                q3.metric("Band Gap / Carga Máx.", f"{band_gap} eV / +{carga_max:.3f} e")
-
                 df_atomos = pd.DataFrame(res["datos_atomos"])
                 event = st.dataframe(
                     df_atomos,
                     use_container_width=True,
-                    height=195,
+                    height=225,
                     hide_index=True,
                     on_select="rerun",
                     selection_mode="single-row",
@@ -928,6 +1126,87 @@ else:
                     mime="chemical/x-mdl-molfile",
                     use_container_width=True,
                 )
+
+            with tab_qm:
+                st.markdown(
+                    '<div class="sec-header" style="font-size: 1.1rem;">🌌 Ecuación de Schrödinger & TOM (Hückel π)</div>',
+                    unsafe_allow_html=True,
+                )
+                st.latex(r"\hat{H}\Psi_i = E_i\Psi_i \qquad \det(\mathbf{H} - E\mathbf{S}) = 0 \qquad \Psi_i = \sum_{\mu} c_{i\mu}\phi_\mu")
+
+                if tom_res is None:
+                    st.info(
+                        "Esta molécula es saturada (sin sistema π conjugado sp²/sp). "
+                        "Prueba con Aspirina, Cafeína, Fenol o Imatinib para resolver sus orbitales moleculares π."
+                    )
+                else:
+                    m1, m2, m3, m4 = st.columns(4)
+                    m1.metric("HOMO", f"{tom_res['homo_ev']} eV")
+                    m2.metric("LUMO", f"{tom_res['lumo_ev']} eV")
+                    m3.metric("Gap ΔE", f"{tom_res['gap_ev']} eV", f"{tom_res['gap_beta']} |β|")
+                    m4.metric("Electrones π", f"{tom_res['pi_electrons']} e⁻")
+
+                    df_orb = pd.DataFrame(tom_res["orbitales"])
+                    chart_orb = (
+                        alt.Chart(df_orb)
+                        .mark_rule(size=3.5)
+                        .encode(
+                            x=alt.X("Índice:O", title="Orbital Molecular (Ψₖ)", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16")),
+                            y=alt.Y("Energía (eV):Q", title="Energía (eV)", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+                            color=alt.Color(
+                                "Tipo:N",
+                                scale=alt.Scale(
+                                    domain=["Ocupado (σ/π)", "HOMO", "LUMO", "Virtual (π*)"],
+                                    range=["#38bdf8", "#84CC16", "#f43f5e", "#94a3b8"],
+                                ),
+                                legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16"),
+                            ),
+                            tooltip=["Orbital", "Tipo", "Energía (eV)", "Energía (|β|)", "Ocupación"],
+                        )
+                        .properties(height=180, background="transparent")
+                        .configure_view(stroke=None)
+                    )
+                    st.altair_chart(chart_orb, use_container_width=True)
+
+                    st.caption(
+                        f"**Descriptores DFT (Koopmans):** Potencial químico $\\mu = {tom_res['mu_chem']}$ eV • "
+                        f"Dureza $\\eta = {tom_res['eta_hard']}$ eV • "
+                        f"Electrofilicidad $\\omega = {tom_res['omega_elec']}$ eV"
+                    )
+
+                    with st.expander("🔍 Densidad Electrónica LCAO |cᵢ|² por Átomo (HOMO vs LUMO)"):
+                        df_dens = pd.DataFrame(tom_res["densidad_atoms"])
+                        st.dataframe(df_dens, use_container_width=True, hide_index=True, height=160)
+
+                st.markdown("<hr style='border-color: rgba(132, 204, 22, 0.2); margin: 14px 0;'>", unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="sec-header" style="font-size: 1.1rem;">💎 Teoría del Campo Cristalino (TCC)</div>',
+                    unsafe_allow_html=True,
+                )
+                tcc_c1, tcc_c2, tcc_c3 = st.columns(3)
+                d_elec = tcc_c1.slider("Configuración dⁿ:", 1, 9, 6)
+                geom_tcc = tcc_c2.selectbox("Geometría:", ["Octaédrica (Oh)", "Tetraédrica (Td)", "Cuadrada Plana (D4h)"])
+                campo_tcc = tcc_c3.radio("Campo:", ["Alto Spin", "Bajo Spin"], horizontal=True)
+
+                tcc_res = calcular_tcc(d_elec, geom_tcc, campo_tcc)
+                tc1, tc2, tc3 = st.columns(3)
+                tc1.metric("EECC (CFSE)", f"{tcc_res['eecc']} {tcc_res['unidad']}")
+                tc2.metric("e⁻ Desapareados", f"{tcc_res['unpaired']}")
+                tc3.metric("Momento μ_eff", f"{tcc_res['mu_b']} μB")
+
+                df_tcc = pd.DataFrame(tcc_res["niveles"])
+                chart_tcc = (
+                    alt.Chart(df_tcc)
+                    .mark_bar(cornerRadius=4, color="#84CC16")
+                    .encode(
+                        x=alt.X("Nivel:N", title="Orbitales d desdoblados", axis=alt.Axis(labelColor="#D1FAE5", labelAngle=0, titleColor="#84CC16")),
+                        y=alt.Y("Energía (Δo):Q", title=f"Energía ({tcc_res['unidad']})", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+                        tooltip=["Nivel", "Energía (Δo)", "Electrones"],
+                    )
+                    .properties(height=150, background="transparent")
+                    .configure_view(stroke=None)
+                )
+                st.altair_chart(chart_tcc, use_container_width=True)
 
             with tab_spec:
                 st.markdown(
