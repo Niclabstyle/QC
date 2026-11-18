@@ -96,11 +96,7 @@ def svg_kpi_badge(kind: str) -> str:
 
 
 def svg_sparkline(color: str = "#84CC16", trend: str = "up") -> str:
-    pts = (
-        "2,18 14,15 24,17 36,10 48,12 62,4"
-        if trend == "up"
-        else "2,6 14,9 26,7 38,14 50,12 62,17"
-    )
+    pts = "2,18 14,15 24,17 36,10 48,12 62,4" if trend == "up" else "2,6 14,9 26,7 38,14 50,12 62,17"
     end_x, end_y = ("62", "4") if trend == "up" else ("62", "17")
     return (
         "<svg width='68' height='22' viewBox='0 0 66 22' fill='none' xmlns='http://www.w3.org/2000/svg'>"
@@ -111,7 +107,6 @@ def svg_sparkline(color: str = "#84CC16", trend: str = "up") -> str:
 
 
 def svg_hologram(kind: str) -> str:
-    """Hologramas isométricos 3D en SVG estilo vidrio esmerilado."""
     pedestal = (
         "<polygon points='40,68 70,53 40,38 10,53' fill='rgba(132,204,22,0.12)' stroke='rgba(132,204,22,0.45)' stroke-width='1.2'/>"
         "<polygon points='40,74 70,59 70,53 40,68' fill='rgba(6,78,59,0.7)'/>"
@@ -122,9 +117,7 @@ def svg_hologram(kind: str) -> str:
             "<polygon points='40,12 62,23 40,34 18,23' fill='rgba(209,250,229,0.22)' stroke='#D1FAE5' stroke-width='1.2'/>"
             "<polygon points='40,34 62,23 62,47 40,58' fill='rgba(132,204,22,0.18)' stroke='#84CC16' stroke-width='1.2'/>"
             "<polygon points='40,34 18,23 18,47 40,58' fill='rgba(56,189,248,0.15)' stroke='#38BDF8' stroke-width='1.2'/>"
-            "<circle cx='40' cy='34' r='3' fill='#84CC16'/>"
-            "<circle cx='29' cy='28' r='2' fill='#D1FAE5'/>"
-            "<circle cx='51' cy='28' r='2' fill='#38BDF8'/>"
+            "<circle cx='40' cy='34' r='3' fill='#84CC16'/><circle cx='29' cy='28' r='2' fill='#D1FAE5'/><circle cx='51' cy='28' r='2' fill='#38BDF8'/>"
         )
     elif kind == "wave":
         body = (
@@ -135,8 +128,7 @@ def svg_hologram(kind: str) -> str:
         )
     else:
         body = (
-            "<path d='M40 12 L58 20 V35 C58 46 49 53 40 57 C31 53 22 46 22 35 V20 Z' "
-            "fill='rgba(132,204,22,0.16)' stroke='#84CC16' stroke-width='1.5'/>"
+            "<path d='M40 12 L58 20 V35 C58 46 49 53 40 57 C31 53 22 46 22 35 V20 Z' fill='rgba(132,204,22,0.16)' stroke='#84CC16' stroke-width='1.5'/>"
             "<path d='M33 34 L38 39 L48 28' fill='none' stroke='#D1FAE5' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/>"
         )
     return (
@@ -153,13 +145,22 @@ def svg_section_icon(kind: str) -> str:
         "cube": "<path d='M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z' stroke='#84CC16' stroke-width='1.6'/><path d='M12 12l8-4.5M12 12v9M12 12L4 7.5' stroke='#D1FAE5' stroke-width='1.3'/>",
         "shield": "<path d='M12 3l7 3.5v5c0 4.5-3 7.8-7 9.5-4-1.7-7-5-7-9.5v-5L12 3z' stroke='#84CC16' stroke-width='1.6' fill='rgba(132,204,22,0.1)'/>",
     }
-    return (
-        "<svg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>"
-        f"{paths.get(kind, paths['atom'])}</svg>"
-    )
+    return f"<svg width='20' height='20' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'>{paths.get(kind, paths['atom'])}</svg>"
 
 
-# 4. SISTEMA DE DISEÑO CSS GLASSMORPHISM 3D
+def svg_data_uri(path_markup: str) -> str:
+    svg = f"<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none'>{path_markup}</svg>"
+    return f"data:image/svg+xml;utf8,{quote(svg)}"
+
+
+ICON_DASH = svg_data_uri("<path d='M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5.5v-6h-5v6H4a1 1 0 0 1-1-1v-9.5z' stroke='%2384CC16' stroke-width='1.8' stroke-linejoin='round'/>")
+ICON_MOL = svg_data_uri("<circle cx='12' cy='12' r='2.5' fill='%2384CC16'/><circle cx='6' cy='7' r='2' stroke='%23D1FAE5' stroke-width='1.5'/><circle cx='18' cy='7' r='2' stroke='%23D1FAE5' stroke-width='1.5'/><circle cx='12' cy='19' r='2' stroke='%2338BDF8' stroke-width='1.5'/><path d='M7.5 8.5L10.2 10.5M16.5 8.5L13.8 10.5M12 14.5V17' stroke='%23D1FAE5' stroke-width='1.4'/>")
+ICON_ORB = svg_data_uri("<circle cx='12' cy='12' r='2.2' fill='%2384CC16'/><ellipse cx='12' cy='12' rx='9' ry='3.5' transform='rotate(35 12 12)' stroke='%23D1FAE5' stroke-width='1.5'/><ellipse cx='12' cy='12' rx='9' ry='3.5' transform='rotate(-35 12 12)' stroke='%2338BDF8' stroke-width='1.5'/>")
+ICON_WAVE = svg_data_uri("<path d='M3 12c2.5-5 4.5-5 7 0s4.5 5 7 0 2.5-3 4-3' stroke='%2384CC16' stroke-width='1.8' stroke-linecap='round'/><path d='M3 16c2.5-3 4.5-3 7 0s4.5 3 7 0' stroke='%2338BDF8' stroke-width='1.4' stroke-linecap='round'/>")
+ICON_SHIELD = svg_data_uri("<path d='M12 3l7 3.5v5c0 4.5-3 7.8-7 9.5-4-1.7-7-5-7-9.5v-5L12 3z' stroke='%2384CC16' stroke-width='1.7' fill='rgba(132,204,22,0.12)'/><path d='M9 12l2 2 4-4' stroke='%23D1FAE5' stroke-width='1.6' stroke-linecap='round'/>")
+
+
+# 4. SISTEMA DE DISEÑO CSS GLASSMORPHISM 3D + BOTONES LATERALES ESTILO MOCKUP
 st.markdown(
     f"""
 <style>
@@ -190,6 +191,56 @@ st.markdown(
         background: linear-gradient(180deg, #031510 0%, #010907 100%) !important;
         border-right: 1px solid rgba(132, 204, 22, 0.18) !important;
     }}
+
+    /* Botones de navegación en Sidebar idénticos al mockup */
+    [data-testid="stSidebar"] .stButton > button {{
+        width: 100% !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        padding: 10px 14px !important;
+        border-radius: 10px !important;
+        font-size: 0.88rem !important;
+        font-weight: 500 !important;
+        transition: all 0.2s ease !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }}
+
+    [data-testid="stSidebar"] .stButton > button[kind="secondary"] {{
+        background: rgba(255, 255, 255, 0.02) !important;
+        border: 1px solid rgba(209, 250, 229, 0.06) !important;
+        color: rgba(209, 250, 229, 0.78) !important;
+    }}
+
+    [data-testid="stSidebar"] .stButton > button[kind="secondary"]:hover {{
+        background: rgba(132, 204, 22, 0.08) !important;
+        border-color: rgba(132, 204, 22, 0.3) !important;
+        color: #FFFFFF !important;
+    }}
+
+    [data-testid="stSidebar"] .stButton > button[kind="primary"] {{
+        background: linear-gradient(90deg, rgba(132, 204, 22, 0.2) 0%, rgba(6, 78, 59, 0.45) 100%) !important;
+        border: 1px solid rgba(132, 204, 22, 0.6) !important;
+        color: #84CC16 !important;
+        box-shadow: 0 0 16px rgba(132, 204, 22, 0.16) !important;
+    }}
+
+    [data-testid="stSidebar"] .stButton > button::before {{
+        content: "";
+        width: 18px;
+        height: 18px;
+        display: inline-block;
+        background-size: contain;
+        background-repeat: no-repeat;
+        flex-shrink: 0;
+    }}
+
+    .st-key-nav_dash button::before {{ background-image: url("{ICON_DASH}"); }}
+    .st-key-nav_mol button::before {{ background-image: url("{ICON_MOL}"); }}
+    .st-key-nav_qm button::before {{ background-image: url("{ICON_ORB}"); }}
+    .st-key-nav_spec button::before {{ background-image: url("{ICON_WAVE}"); }}
+    .st-key-nav_adme button::before {{ background-image: url("{ICON_SHIELD}"); }}
 
     .hero-bar {{
         background: linear-gradient(135deg, rgba(8, 66, 51, 0.58) 0%, rgba(2, 24, 18, 0.85) 100%);
@@ -517,13 +568,15 @@ def calcular_huckel_tom(smiles: str):
         e_beta = float(eigvals[k])
         e_ev = round(alpha_ev + e_beta * beta_abs_ev, 3)
         if k < homo_idx:
-            occ, tipo = 2, "Ocupado (π)"
+            occ, tipo, spin_txt = 2, "Ocupado (π)", "↑↓"
         elif k == homo_idx:
-            occ, tipo = (1 if pi_electrons % 2 == 1 else 2), "HOMO"
+            occ = 1 if pi_electrons % 2 == 1 else 2
+            tipo = "HOMO"
+            spin_txt = "↑" if occ == 1 else "↑↓"
         elif k == lumo_idx and lumo_idx > homo_idx:
-            occ, tipo = 0, "LUMO"
+            occ, tipo, spin_txt = 0, "LUMO", ""
         else:
-            occ, tipo = 0, "Virtual (π*)"
+            occ, tipo, spin_txt = 0, "Virtual (π*)", ""
 
         orbitales.append(
             {
@@ -532,6 +585,7 @@ def calcular_huckel_tom(smiles: str):
                 "Energía (|β|)": round(e_beta, 3),
                 "Energía (eV)": e_ev,
                 "Ocupación": occ,
+                "Spin": spin_txt,
                 "Tipo": tipo,
             }
         )
@@ -561,6 +615,7 @@ def calcular_huckel_tom(smiles: str):
         "n_pi_atoms": n,
         "pi_electrons": pi_electrons,
         "orbitales": orbitales,
+        "homo_idx": homo_idx,
         "homo_ev": homo_ev,
         "lumo_ev": lumo_ev,
         "gap_ev": gap_ev,
@@ -570,6 +625,97 @@ def calcular_huckel_tom(smiles: str):
         "omega_elec": omega_elec,
         "densidad_atoms": densidad_atoms,
     }
+
+
+def construir_diagrama_tom_correlacion(tom_res: dict):
+    """Genera el diagrama de correlación LCAO-MO (AO izquierda -> MO centro -> AO derecha) igual al mockup."""
+    orbs = tom_res["orbitales"]
+    homo_i = tom_res["homo_idx"]
+    # Ventana de hasta 8 orbitales frontera para mantener legibilidad visual con flechas y líneas
+    start = max(0, homo_i - 3)
+    end = min(len(orbs), start + 8)
+    start = max(0, end - 8)
+    ventana = orbs[start:end]
+
+    e_media = float(np.mean([o["Energía (eV)"] for o in ventana]))
+    e_ao_a = round(e_media + 0.35, 3)
+    e_ao_b = round(e_media - 0.35, 3)
+
+    barras = []
+    correlaciones = []
+    etiquetas = []
+
+    # Niveles AO izquierda y derecha
+    barras.append({"id": "AO_A", "x": 0.15, "y": e_ao_a, "Tipo": "Orbital Atómico"})
+    barras.append({"id": "AO_A", "x": 0.85, "y": e_ao_a, "Tipo": "Orbital Atómico"})
+    barras.append({"id": "AO_B", "x": 3.15, "y": e_ao_b, "Tipo": "Orbital Atómico"})
+    barras.append({"id": "AO_B", "x": 3.85, "y": e_ao_b, "Tipo": "Orbital Atómico"})
+
+    etiquetas.append({"x": 0.5, "y": e_ao_a, "texto": "φA (AO)", "Tipo": "Orbital Atómico"})
+    etiquetas.append({"x": 3.5, "y": e_ao_b, "texto": "φB (AO)", "Tipo": "Orbital Atómico"})
+
+    for idx, o in enumerate(ventana):
+        e_val = o["Energía (eV)"]
+        tipo = o["Tipo"]
+        bar_id = f"MO_{idx}"
+        # Barra horizontal del orbital molecular en el centro
+        barras.append({"id": bar_id, "x": 1.65, "y": e_val, "Tipo": tipo})
+        barras.append({"id": bar_id, "x": 2.35, "y": e_val, "Tipo": tipo})
+
+        # Líneas punteadas de correlación desde AO_A (0.85) -> MO (1.65) y MO (2.35) -> AO_B (3.15)
+        correlaciones.append({"id": f"CL_{idx}", "x": 0.85, "y": e_ao_a, "Tipo": tipo})
+        correlaciones.append({"id": f"CL_{idx}", "x": 1.65, "y": e_val, "Tipo": tipo})
+        correlaciones.append({"id": f"CR_{idx}", "x": 2.35, "y": e_val, "Tipo": tipo})
+        correlaciones.append({"id": f"CR_{idx}", "x": 3.15, "y": e_ao_b, "Tipo": tipo})
+
+        if o["Spin"]:
+            etiquetas.append({"x": 2.0, "y": e_val, "texto": o["Spin"], "Tipo": tipo})
+        if tipo in ("HOMO", "LUMO"):
+            etiquetas.append({"x": 2.55, "y": e_val, "texto": f"{tipo} ({o['Orbital']})", "Tipo": tipo})
+
+    df_barras = pd.DataFrame(barras)
+    df_corr = pd.DataFrame(correlaciones)
+    df_etq = pd.DataFrame(etiquetas)
+
+    escala_color = alt.Scale(
+        domain=["Ocupado (π)", "HOMO", "LUMO", "Virtual (π*)", "Orbital Atómico"],
+        range=["#38BDF8", "#84CC16", "#F43F5E", "#A3E635", "#D1FAE5"],
+    )
+
+    capa_corr = (
+        alt.Chart(df_corr)
+        .mark_line(strokeDash=[4, 4], strokeWidth=1.2, opacity=0.65)
+        .encode(
+            x=alt.X("x:Q", title="", scale=alt.Scale(domain=[0, 4.1]), axis=None),
+            y=alt.Y("y:Q", title="Energía (eV)", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.08)")),
+            detail="id:N",
+            color=alt.Color("Tipo:N", scale=escala_color, legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16", orient="bottom")),
+        )
+    )
+
+    capa_barras = (
+        alt.Chart(df_barras)
+        .mark_line(strokeWidth=3.2)
+        .encode(
+            x="x:Q",
+            y="y:Q",
+            detail="id:N",
+            color=alt.Color("Tipo:N", scale=escala_color),
+        )
+    )
+
+    capa_txt = (
+        alt.Chart(df_etq)
+        .mark_text(dy=-9, fontSize=11, fontWeight="bold")
+        .encode(
+            x="x:Q",
+            y="y:Q",
+            text="texto:N",
+            color=alt.Color("Tipo:N", scale=escala_color),
+        )
+    )
+
+    return (capa_corr + capa_barras + capa_txt).properties(height=255, background="transparent").configure_view(stroke=None)
 
 
 def calcular_tcc(d_electrons: int, geometria: str, campo: str):
@@ -865,14 +1011,14 @@ def construir_html_3d(
     return html_code
 
 
-# 6. HERO BAR (ESTILO 3D GLASSMORPHISM SIN EMOJIS)
+# 6. HERO BAR (ESTILO 3D GLASSMORPHISM)
 st.markdown(
     f"<div class='hero-bar'>"
     f"<div class='hero-left'>{svg_hero_emblem()}"
     f"<div><div class='brand-title'>PharmaChem AI Studio</div>"
     f"<div class='hero-sub'>Química Cuántica (TOM / TCC / L), Mapa ESP Gasteiger, BOILED-Egg y Comparador Estructural</div>"
     f"</div></div>"
-    f"<div class='badge-pill'>Green Lab &amp; Quantum Core v8.0</div>"
+    f"<div class='badge-pill'>Green Lab &amp; Quantum Core v8.5</div>"
     f"</div>",
     unsafe_allow_html=True,
 )
@@ -895,12 +1041,29 @@ base_moleculas = {
     "CN1CCC[C@H]1C2=CN=CC=C2": ("Nicotina", "Alcaloide Natural", "C10H14N2"),
 }
 
-# 8. BARRA LATERAL (LIMPIA, SIN EMOJIS)
+# 8. BARRA LATERAL CON BOTONES ESTILO MOCKUP
+if "vista_nav" not in st.session_state:
+    st.session_state.vista_nav = "dashboard"
+
 st.sidebar.markdown(
-    f"<div class='sec-header'>{svg_section_icon('search')}<span>Explorador Molecular</span></div>",
+    f"<div class='sec-header'>{svg_section_icon('search')}<span>Explorer</span></div>",
     unsafe_allow_html=True,
 )
 
+nav_items = [
+    ("dashboard", "nav_dash", "Dashboard"),
+    ("mol", "nav_mol", "Molécula y Cargas"),
+    ("qm", "nav_qm", "Orbitales (TOM / TCC)"),
+    ("spec", "nav_spec", "Espectros IR / UV"),
+    ("adme", "nav_adme", "ADME y Seguridad"),
+]
+for vista_id, key_btn, label_btn in nav_items:
+    btn_type = "primary" if st.session_state.vista_nav == vista_id else "secondary"
+    if st.sidebar.button(label_btn, key=key_btn, type=btn_type, use_container_width=True):
+        st.session_state.vista_nav = vista_id
+        st.rerun()
+
+st.sidebar.markdown("<hr style='border-color: rgba(132, 204, 22, 0.15); margin: 12px 0;'>", unsafe_allow_html=True)
 modo_comparador = st.sidebar.toggle("Modo Comparador (A vs B)", value=False)
 
 query_busqueda = (
@@ -1091,280 +1254,268 @@ else:
         col_analisis, col_visor = st.columns([1.25, 1], gap="large")
         selected_atom_id = -1
 
-        with col_analisis:
-            tab_quant, tab_qm, tab_spec, tab_adme = st.tabs(
-                [
-                    "Cargas y Tabla",
-                    "Cuántica (TOM / TCC / L)",
-                    "Espectros",
-                    "ADME y BOILED-Egg",
-                ]
+        def render_cargas():
+            nonlocal selected_atom_id
+            st.markdown(
+                "<div class='glass-panel'>"
+                "<div style='font-weight:600; color:#84CC16; font-size:0.95rem; margin-bottom:4px;'>Sincronización Tabla → Visor 3D y 2D</div>"
+                "<p style='font-size:0.85rem; color:#D1FAE5; margin:0;'>Selecciona cualquier fila para enfocar y resaltar ese átomo en ambos visores.</p>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+            df_atomos = pd.DataFrame(res["datos_atomos"])
+            event = st.dataframe(
+                df_atomos, use_container_width=True, height=225, hide_index=True, on_select="rerun", selection_mode="single-row"
+            )
+            if event.selection.rows:
+                row_idx = event.selection.rows[0]
+                if row_idx < len(df_atomos):
+                    fila = df_atomos.iloc[row_idx]
+                    selected_atom_id = int(fila["ID Átomo"])
+                    st.success(
+                        f"Átomo seleccionado: ID #{selected_atom_id} | Elemento: {fila['Elemento']} | "
+                        f"Hibridación: {fila['Hibridación']} | Carga: {fila['Carga (e)']} e"
+                    )
+            else:
+                st.caption("Haz clic en el margen izquierdo de una fila para enfocar el átomo en los visores.")
+
+            dl1, dl2 = st.columns(2)
+            dl1.download_button(
+                "Descargar CSV de cargas",
+                data=df_atomos.to_csv(index=False).encode("utf-8"),
+                file_name=f"{nombre_mol.lower().replace(' ', '_')}_cargas.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+            dl2.download_button(
+                "Descargar estructura 3D (.mol)",
+                data=res["mol_block"],
+                file_name=f"{nombre_mol.lower().replace(' ', '_')}.mol",
+                mime="chemical/x-mdl-molfile",
+                use_container_width=True,
             )
 
-            with tab_quant:
-                st.markdown(
-                    "<div class='glass-panel'>"
-                    "<div style='font-weight:600; color:#84CC16; font-size:0.95rem; margin-bottom:4px;'>Sincronización Tabla → Visor 3D y 2D</div>"
-                    "<p style='font-size:0.85rem; color:#D1FAE5; margin:0;'>Selecciona cualquier fila para enfocar y resaltar ese átomo en ambos visores.</p>"
-                    "</div>",
-                    unsafe_allow_html=True,
-                )
+        def render_cuantica():
+            st.markdown(
+                f"<div class='sec-header'>{svg_section_icon('atom')}<span>Ecuación de Schrödinger y Diagrama de Correlación TOM (Hückel π)</span></div>",
+                unsafe_allow_html=True,
+            )
+            st.latex(r"\hat{H}\Psi_i = E_i\Psi_i \qquad \det(\mathbf{H} - E\mathbf{S}) = 0 \qquad \Psi_i = \sum_{\mu} c_{i\mu}\phi_\mu")
 
-                df_atomos = pd.DataFrame(res["datos_atomos"])
-                event = st.dataframe(
-                    df_atomos,
-                    use_container_width=True,
-                    height=225,
-                    hide_index=True,
-                    on_select="rerun",
-                    selection_mode="single-row",
-                )
+            if tom_res is None:
+                st.info("Molécula saturada sin sistema π conjugado sp²/sp. Selecciona un compuesto aromático o conjugado para resolver sus orbitales π.")
+            else:
+                m1, m2, m3, m4 = st.columns(4)
+                m1.metric("HOMO", f"{tom_res['homo_ev']} eV")
+                m2.metric("LUMO", f"{tom_res['lumo_ev']} eV")
+                m3.metric("Gap ΔE", f"{tom_res['gap_ev']} eV", f"{tom_res['gap_beta']} |β|")
+                m4.metric("Electrones π", f"{tom_res['pi_electrons']} e⁻")
 
-                if event.selection.rows:
-                    row_idx = event.selection.rows[0]
-                    if row_idx < len(df_atomos):
-                        fila = df_atomos.iloc[row_idx]
-                        selected_atom_id = int(fila["ID Átomo"])
-                        st.success(
-                            f"Átomo seleccionado: ID #{selected_atom_id} | Elemento: {fila['Elemento']} | "
-                            f"Hibridación: {fila['Hibridación']} | Carga: {fila['Carga (e)']} e"
-                        )
-                else:
-                    st.caption("Haz clic en el margen izquierdo de una fila para enfocar el átomo en los visores.")
-
-                dl1, dl2 = st.columns(2)
-                dl1.download_button(
-                    "Descargar CSV de cargas",
-                    data=df_atomos.to_csv(index=False).encode("utf-8"),
-                    file_name=f"{nombre_mol.lower().replace(' ', '_')}_cargas.csv",
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-                dl2.download_button(
-                    "Descargar estructura 3D (.mol)",
-                    data=res["mol_block"],
-                    file_name=f"{nombre_mol.lower().replace(' ', '_')}.mol",
-                    mime="chemical/x-mdl-molfile",
-                    use_container_width=True,
-                )
-
-            with tab_qm:
-                st.markdown(
-                    f"<div class='sec-header'>{svg_section_icon('atom')}<span>Ecuación de Schrödinger y TOM (Hückel π)</span></div>",
-                    unsafe_allow_html=True,
-                )
-                st.latex(r"\hat{H}\Psi_i = E_i\Psi_i \qquad \det(\mathbf{H} - E\mathbf{S}) = 0 \qquad \Psi_i = \sum_{\mu} c_{i\mu}\phi_\mu")
-
-                if tom_res is None:
-                    st.info("Molécula saturada sin sistema π conjugado sp²/sp. Selecciona un compuesto aromático o conjugado para resolver sus orbitales π.")
-                else:
-                    m1, m2, m3, m4 = st.columns(4)
-                    m1.metric("HOMO", f"{tom_res['homo_ev']} eV")
-                    m2.metric("LUMO", f"{tom_res['lumo_ev']} eV")
-                    m3.metric("Gap ΔE", f"{tom_res['gap_ev']} eV", f"{tom_res['gap_beta']} |β|")
-                    m4.metric("Electrones π", f"{tom_res['pi_electrons']} e⁻")
-
-                    df_orb = pd.DataFrame(tom_res["orbitales"])
-                    chart_orb = (
-                        alt.Chart(df_orb)
-                        .mark_rule(size=3.5)
-                        .encode(
-                            x=alt.X("Índice:O", title="Orbital Molecular (Ψₖ)", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16")),
-                            y=alt.Y("Energía (eV):Q", title="Energía (eV)", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
-                            color=alt.Color(
-                                "Tipo:N",
-                                scale=alt.Scale(
-                                    domain=["Ocupado (π)", "HOMO", "LUMO", "Virtual (π*)"],
-                                    range=["#38bdf8", "#84CC16", "#f43f5e", "#94a3b8"],
-                                ),
-                                legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16"),
-                            ),
-                            tooltip=["Orbital", "Tipo", "Energía (eV)", "Energía (|β|)", "Ocupación"],
-                        )
-                        .properties(height=180, background="transparent")
-                        .configure_view(stroke=None)
-                    )
-                    st.altair_chart(chart_orb, use_container_width=True)
-
-                    st.caption(
-                        f"Descriptores DFT (Koopmans): Potencial químico $\\mu = {tom_res['mu_chem']}$ eV • "
-                        f"Dureza $\\eta = {tom_res['eta_hard']}$ eV • Electrofilicidad $\\omega = {tom_res['omega_elec']}$ eV"
-                    )
-
-                    with st.expander("Densidad Electrónica LCAO |cᵢ|² por Átomo (HOMO vs LUMO)"):
-                        st.dataframe(pd.DataFrame(tom_res["densidad_atoms"]), use_container_width=True, hide_index=True, height=160)
-
-                st.markdown("<hr style='border-color: rgba(132, 204, 22, 0.18); margin: 14px 0;'>", unsafe_allow_html=True)
-                st.markdown(f"<div class='sec-header'>{svg_section_icon('cube')}<span>Teoría del Campo Cristalino (TCC)</span></div>", unsafe_allow_html=True)
-
-                tcc_c1, tcc_c2, tcc_c3 = st.columns(3)
-                d_elec = tcc_c1.slider("Configuración dⁿ:", 1, 9, 6)
-                geom_tcc = tcc_c2.selectbox("Geometría:", ["Octaédrica (Oh)", "Tetraédrica (Td)", "Cuadrada Plana (D4h)"])
-                campo_tcc = tcc_c3.radio("Campo:", ["Alto Spin", "Bajo Spin"], horizontal=True)
-
-                tcc_res = calcular_tcc(d_elec, geom_tcc, campo_tcc)
-                tc1, tc2, tc3 = st.columns(3)
-                tc1.metric("EECC (CFSE)", f"{tcc_res['eecc']} {tcc_res['unidad']}")
-                tc2.metric("e⁻ Desapareados", f"{tcc_res['unpaired']}")
-                tc3.metric("Momento μ_eff", f"{tcc_res['mu_b']} μB")
-
-                chart_tcc = (
-                    alt.Chart(pd.DataFrame(tcc_res["niveles"]))
-                    .mark_bar(cornerRadius=4, color="#84CC16")
-                    .encode(
-                        x=alt.X("Nivel:N", title="Orbitales d desdoblados", axis=alt.Axis(labelColor="#D1FAE5", labelAngle=0, titleColor="#84CC16")),
-                        y=alt.Y("Energía:Q", title=f"Energía ({tcc_res['unidad']})", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
-                        tooltip=["Nivel", "Energía", "Electrones"],
-                    )
-                    .properties(height=150, background="transparent")
-                    .configure_view(stroke=None)
-                )
-                st.altair_chart(chart_tcc, use_container_width=True)
-
-                st.markdown("<hr style='border-color: rgba(132, 204, 22, 0.18); margin: 14px 0;'>", unsafe_allow_html=True)
-                st.markdown(f"<div class='sec-header'>{svg_section_icon('atom')}<span>Momento Angular Orbital (Cuantización Espacial)</span></div>", unsafe_allow_html=True)
-                st.latex(r"\hat{L}^2 Y_l^{m_l} = \hbar^2 l(l+1) Y_l^{m_l} \qquad \hat{L}_z Y_l^{m_l} = \hbar m_l Y_l^{m_l} \qquad \cos\theta = \frac{m_l}{\sqrt{l(l+1)}}")
-
-                subcapas = {0: "s", 1: "p", 2: "d", 3: "f", 4: "g"}
-                mao_c1, mao_c2, mao_c3 = st.columns(3)
-                n_q = mao_c1.slider("Número principal (n):", 1, 5, 3, key="mao_n")
-                l_q = mao_c2.selectbox("Azimutal (l):", options=list(range(n_q)), index=min(2, n_q - 1), format_func=lambda x: f"{x} (subcapa {subcapas[x]})", key="mao_l")
-                m_opciones = list(range(-l_q, l_q + 1))
-                ml_q = mao_c3.selectbox("Magnético (mₗ):", options=m_opciones, index=len(m_opciones) - 1, key="mao_ml")
-
-                l_mag = float(np.sqrt(l_q * (l_q + 1)))
-                k1, k2, k3, k4 = st.columns(4)
-                k1.metric("Orbital", f"{n_q}{subcapas[l_q]}")
-                k2.metric("|L| (ħ)", f"{l_mag:.3f} ħ")
-                k3.metric("L_z (ħ)", f"{ml_q:+d} ħ")
-                if l_q > 0:
-                    angulo_deg = float(np.degrees(np.arccos(np.clip(ml_q / l_mag, -1.0, 1.0))))
-                    k4.metric("Ángulo θ", f"{angulo_deg:.1f}°")
-                else:
-                    k4.metric("Ángulo θ", "Esférico")
+                st.altair_chart(construir_diagrama_tom_correlacion(tom_res), use_container_width=True)
 
                 st.caption(
-                    f"Nodos: {n_q - l_q - 1} radiales ($n-l-1$) • {l_q} angulares ($l$) • "
-                    f"Momento magnético orbital z: $\\mu_{{L,z}} = {-ml_q:+d}\\,\\mu_B$"
+                    f"Descriptores DFT (Koopmans): Potencial químico $\\mu = {tom_res['mu_chem']}$ eV • "
+                    f"Dureza $\\eta = {tom_res['eta_hard']}$ eV • Electrofilicidad $\\omega = {tom_res['omega_elec']}$ eV"
                 )
 
-                if l_q == 0:
-                    st.info("Para $l = 0$ (orbital $s$), $|\\mathbf{L}| = 0$ y la nube electrónica tiene simetría esférica.")
-                else:
-                    filas_vec = []
-                    for m_val in m_opciones:
-                        l_perp = float(np.sqrt(max(0.0, l_mag**2 - m_val**2)))
-                        estado = "Seleccionado" if m_val == ml_q else "Permitido"
-                        filas_vec.append({"m": f"mₗ={m_val:+d}", "x": 0.0, "y": 0.0, "Estado": estado})
-                        filas_vec.append({"m": f"mₗ={m_val:+d}", "x": l_perp, "y": float(m_val), "Estado": estado})
+                with st.expander("Tabla de Orbitales Moleculares y Densidad LCAO |cᵢ|²"):
+                    st.dataframe(pd.DataFrame(tom_res["orbitales"]), use_container_width=True, hide_index=True, height=150)
+                    st.dataframe(pd.DataFrame(tom_res["densidad_atoms"]), use_container_width=True, hide_index=True, height=150)
 
-                    df_vec = pd.DataFrame(filas_vec)
-                    df_pts = df_vec[df_vec["x"] > 0].copy()
-                    if df_pts.empty:
-                        df_pts = pd.DataFrame([{"m": f"mₗ={m:+d}", "x": float(np.sqrt(max(0.0, l_mag**2 - m**2))), "y": float(m), "Estado": "Seleccionado" if m == ml_q else "Permitido"} for m in m_opciones])
+            st.markdown("<hr style='border-color: rgba(132, 204, 22, 0.18); margin: 14px 0;'>", unsafe_allow_html=True)
+            st.markdown(f"<div class='sec-header'>{svg_section_icon('cube')}<span>Teoría del Campo Cristalino (TCC)</span></div>", unsafe_allow_html=True)
 
-                    limite = l_mag + 0.5
-                    lineas_l = (
-                        alt.Chart(df_vec)
-                        .mark_line(strokeWidth=2.5)
-                        .encode(
-                            x=alt.X("x:Q", title="Componente transversal L⊥ (ħ)", scale=alt.Scale(domain=[-0.3, limite]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
-                            y=alt.Y("y:Q", title="Proyección Lz (ħ)", scale=alt.Scale(domain=[-limite, limite]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
-                            detail="m:N",
-                            color=alt.Color("Estado:N", scale=alt.Scale(domain=["Seleccionado", "Permitido"], range=["#84CC16", "#38bdf8"]), legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16")),
-                        )
-                    )
-                    puntos_l = (
-                        alt.Chart(df_pts)
-                        .mark_point(size=100, filled=True)
-                        .encode(x="x:Q", y="y:Q", color=alt.Color("Estado:N", scale=alt.Scale(domain=["Seleccionado", "Permitido"], range=["#84CC16", "#38bdf8"])), tooltip=["m", "y", "x"])
-                    )
-                    st.altair_chart((lineas_l + puntos_l).properties(height=210, background="transparent").configure_view(stroke=None), use_container_width=True)
+            tcc_c1, tcc_c2, tcc_c3 = st.columns(3)
+            d_elec = tcc_c1.slider("Configuración dⁿ:", 1, 9, 6)
+            geom_tcc = tcc_c2.selectbox("Geometría:", ["Octaédrica (Oh)", "Tetraédrica (Td)", "Cuadrada Plana (D4h)"])
+            campo_tcc = tcc_c3.radio("Campo:", ["Alto Spin", "Bajo Spin"], horizontal=True)
 
-            with tab_spec:
-                st.markdown(f"<div class='sec-header'>{svg_section_icon('atom')}<span>Espectroscopia Simulada (SMARTS)</span></div>", unsafe_allow_html=True)
+            tcc_res = calcular_tcc(d_elec, geom_tcc, campo_tcc)
+            tc1, tc2, tc3 = st.columns(3)
+            tc1.metric("EECC (CFSE)", f"{tcc_res['eecc']} {tcc_res['unidad']}")
+            tc2.metric("e⁻ Desapareados", f"{tcc_res['unpaired']}")
+            tc3.metric("Momento μ_eff", f"{tcc_res['mu_b']} μB")
 
-                ondas_ir = np.linspace(600, 3900, 320)
-                transmitancia = np.ones_like(ondas_ir) * 95.0 - 20 * np.exp(-((ondas_ir - 2940) / 55) ** 2)
-                sm = res["smarts"]
-                if sm["has_oh"]:
-                    transmitancia -= 42 * np.exp(-((ondas_ir - 3360) / 130) ** 2)
-                if sm["has_nh"]:
-                    transmitancia -= 28 * np.exp(-((ondas_ir - 3310) / 55) ** 2)
-                if sm["has_cn"]:
-                    transmitancia -= 38 * np.exp(-((ondas_ir - 2240) / 22) ** 2)
-                if sm["has_co"]:
-                    transmitancia -= 60 * np.exp(-((ondas_ir - 1715) / 28) ** 2)
-                if anillos_arom > 0:
-                    transmitancia -= 34 * np.exp(-((ondas_ir - 1595) / 32) ** 2)
-                if sm["has_c_o"]:
-                    transmitancia -= 30 * np.exp(-((ondas_ir - 1120) / 45) ** 2)
+            chart_tcc = (
+                alt.Chart(pd.DataFrame(tcc_res["niveles"]))
+                .mark_bar(cornerRadius=4, color="#84CC16")
+                .encode(
+                    x=alt.X("Nivel:N", title="Orbitales d desdoblados", axis=alt.Axis(labelColor="#D1FAE5", labelAngle=0, titleColor="#84CC16")),
+                    y=alt.Y("Energía:Q", title=f"Energía ({tcc_res['unidad']})", axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+                    tooltip=["Nivel", "Energía", "Electrones"],
+                )
+                .properties(height=150, background="transparent")
+                .configure_view(stroke=None)
+            )
+            st.altair_chart(chart_tcc, use_container_width=True)
 
-                df_ir = pd.DataFrame({"Onda": ondas_ir, "Transmitancia": np.clip(transmitancia, 5, 100)})
-                chart_ir = (
-                    alt.Chart(df_ir)
-                    .mark_line(color="#84CC16", strokeWidth=2)
+            st.markdown("<hr style='border-color: rgba(132, 204, 22, 0.18); margin: 14px 0;'>", unsafe_allow_html=True)
+            st.markdown(f"<div class='sec-header'>{svg_section_icon('atom')}<span>Momento Angular Orbital (Cuantización Espacial)</span></div>", unsafe_allow_html=True)
+            st.latex(r"\hat{L}^2 Y_l^{m_l} = \hbar^2 l(l+1) Y_l^{m_l} \qquad \hat{L}_z Y_l^{m_l} = \hbar m_l Y_l^{m_l} \qquad \cos\theta = \frac{m_l}{\sqrt{l(l+1)}}")
+
+            subcapas = {0: "s", 1: "p", 2: "d", 3: "f", 4: "g"}
+            mao_c1, mao_c2, mao_c3 = st.columns(3)
+            n_q = mao_c1.slider("Número principal (n):", 1, 5, 3, key="mao_n")
+            l_q = mao_c2.selectbox("Azimutal (l):", options=list(range(n_q)), index=min(2, n_q - 1), format_func=lambda x: f"{x} (subcapa {subcapas[x]})", key="mao_l")
+            m_opciones = list(range(-l_q, l_q + 1))
+            ml_q = mao_c3.selectbox("Magnético (mₗ):", options=m_opciones, index=len(m_opciones) - 1, key="mao_ml")
+
+            l_mag = float(np.sqrt(l_q * (l_q + 1)))
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("Orbital", f"{n_q}{subcapas[l_q]}")
+            k2.metric("|L| (ħ)", f"{l_mag:.3f} ħ")
+            k3.metric("L_z (ħ)", f"{ml_q:+d} ħ")
+            if l_q > 0:
+                angulo_deg = float(np.degrees(np.arccos(np.clip(ml_q / l_mag, -1.0, 1.0))))
+                k4.metric("Ángulo θ", f"{angulo_deg:.1f}°")
+            else:
+                k4.metric("Ángulo θ", "Esférico")
+
+            st.caption(
+                f"Nodos: {n_q - l_q - 1} radiales ($n-l-1$) • {l_q} angulares ($l$) • "
+                f"Momento magnético orbital z: $\\mu_{{L,z}} = {-ml_q:+d}\\,\\mu_B$"
+            )
+
+            if l_q == 0:
+                st.info("Para $l = 0$ (orbital $s$), $|\\mathbf{L}| = 0$ y la nube electrónica tiene simetría esférica.")
+            else:
+                filas_vec = []
+                for m_val in m_opciones:
+                    l_perp = float(np.sqrt(max(0.0, l_mag**2 - m_val**2)))
+                    estado = "Seleccionado" if m_val == ml_q else "Permitido"
+                    filas_vec.append({"m": f"mₗ={m_val:+d}", "x": 0.0, "y": 0.0, "Estado": estado})
+                    filas_vec.append({"m": f"mₗ={m_val:+d}", "x": l_perp, "y": float(m_val), "Estado": estado})
+
+                df_vec = pd.DataFrame(filas_vec)
+                df_pts = df_vec[df_vec["x"] > 0].copy()
+                if df_pts.empty:
+                    df_pts = pd.DataFrame([{"m": f"mₗ={m:+d}", "x": float(np.sqrt(max(0.0, l_mag**2 - m**2))), "y": float(m), "Estado": "Seleccionado" if m == ml_q else "Permitido"} for m in m_opciones])
+
+                limite = l_mag + 0.5
+                lineas_l = (
+                    alt.Chart(df_vec)
+                    .mark_line(strokeWidth=2.5)
                     .encode(
-                        x=alt.X("Onda:Q", title="Número de Onda (cm⁻¹)", scale=alt.Scale(reverse=True), axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16")),
-                        y=alt.Y("Transmitancia:Q", title="% Transmitancia", axis=alt.Axis(grid=True, gridColor="rgba(132, 204, 22, 0.1)", labelColor="#D1FAE5", titleColor="#84CC16")),
+                        x=alt.X("x:Q", title="Componente transversal L⊥ (ħ)", scale=alt.Scale(domain=[-0.3, limite]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+                        y=alt.Y("y:Q", title="Proyección Lz (ħ)", scale=alt.Scale(domain=[-limite, limite]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+                        detail="m:N",
+                        color=alt.Color("Estado:N", scale=alt.Scale(domain=["Seleccionado", "Permitido"], range=["#84CC16", "#38bdf8"]), legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16")),
                     )
-                    .properties(height=155, background="transparent")
-                    .configure_view(stroke=None)
                 )
-                st.caption("Espectro Infrarrojo (FT-IR por grupos funcionales SMARTS):")
-                st.altair_chart(chart_ir, use_container_width=True)
-
-                long_onda = np.linspace(200, 550, 180)
-                lambda_max = 215 + (anillos_arom * 40) + (hba * 5)
-                df_uv = pd.DataFrame({"Lambda": long_onda, "Absorbancia": 1.3 * np.exp(-((long_onda - lambda_max) / 25) ** 2)})
-                chart_uv = (
-                    alt.Chart(df_uv)
-                    .mark_area(
-                        color=alt.Gradient(gradient="linear", stops=[alt.GradientStop(color="#84CC16", offset=0), alt.GradientStop(color="rgba(6,78,59,0.1)", offset=1)], x1=1, y1=1, x2=1, y2=0),
-                        line={"color": "#84CC16", "strokeWidth": 2},
-                    )
-                    .encode(
-                        x=alt.X("Lambda:Q", title="Longitud de Onda (nm)", axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16")),
-                        y=alt.Y("Absorbancia:Q", title="Absorbancia (UA)", axis=alt.Axis(grid=True, gridColor="rgba(132, 204, 22, 0.1)", labelColor="#D1FAE5", titleColor="#84CC16")),
-                    )
-                    .properties(height=135, background="transparent")
-                    .configure_view(stroke=None)
+                puntos_l = (
+                    alt.Chart(df_pts)
+                    .mark_point(size=100, filled=True)
+                    .encode(x="x:Q", y="y:Q", color=alt.Color("Estado:N", scale=alt.Scale(domain=["Seleccionado", "Permitido"], range=["#84CC16", "#38bdf8"])), tooltip=["m", "y", "x"])
                 )
-                st.caption(f"Espectro UV-Vis estimado (λ max: {lambda_max} nm):")
-                st.altair_chart(chart_uv, use_container_width=True)
+                st.altair_chart((lineas_l + puntos_l).properties(height=210, background="transparent").configure_view(stroke=None), use_container_width=True)
 
-            with tab_adme:
-                st.markdown(f"<div class='sec-header'>{svg_section_icon('shield')}<span>Mapa BOILED-Egg (HIA vs BBB)</span></div>", unsafe_allow_html=True)
-                st.altair_chart(construir_boiled_egg(tpsa, logp, nombre_mol), use_container_width=True)
+        def render_espectros():
+            st.markdown(f"<div class='sec-header'>{svg_section_icon('atom')}<span>Espectroscopia Simulada (SMARTS)</span></div>", unsafe_allow_html=True)
 
-                sol_cat = "Muy soluble" if log_s > -2 else ("Soluble" if log_s >= -4 else ("Moderada" if log_s >= -6 else "Poco soluble"))
-                reglas = [
-                    ("Peso Molecular < 500 g/mol (Lipinski)", pm < 500, f"{pm:.1f}"),
-                    ("Lipofilicidad LogP < 5 (Lipinski)", logp < 5, f"{logp:.2f}"),
-                    ("Donantes H (HBD ≤ 5) / Aceptores H (HBA ≤ 10)", hbd <= 5 and hba <= 10, f"{hbd} / {hba}"),
-                    ("TPSA ≤ 140 Å² & Rotables ≤ 10 (Veber)", tpsa <= 140 and rot_bonds <= 10, f"{tpsa:.1f} Å² | {rot_bonds}"),
-                    (f"Solubilidad ESOL ({sol_cat})", log_s >= -4, f"LogS {log_s:.2f}"),
-                ]
-                for nombre, cumple, val in reglas:
-                    color = "#84CC16" if cumple else "#f59e0b"
-                    estado_txt = "CUMPLE" if cumple else "ALERTA"
-                    st.markdown(
-                        f"<div style='display:flex; justify-content:space-between; background:rgba(2,22,17,0.72); padding:8px 12px; border-radius:8px; margin-bottom:6px; border-left:4px solid {color};'>"
-                        f"<span style='color:#E6F4EA; font-size:0.85rem;'>{nombre}</span>"
-                        f"<span style='font-family:\"JetBrains Mono\", monospace; color:{color}; font-weight:600; font-size:0.82rem;'>{val} · {estado_txt}</span>"
-                        f"</div>",
-                        unsafe_allow_html=True,
-                    )
+            ondas_ir = np.linspace(600, 3900, 320)
+            transmitancia = np.ones_like(ondas_ir) * 95.0 - 20 * np.exp(-((ondas_ir - 2940) / 55) ** 2)
+            sm = res["smarts"]
+            if sm["has_oh"]:
+                transmitancia -= 42 * np.exp(-((ondas_ir - 3360) / 130) ** 2)
+            if sm["has_nh"]:
+                transmitancia -= 28 * np.exp(-((ondas_ir - 3310) / 55) ** 2)
+            if sm["has_cn"]:
+                transmitancia -= 38 * np.exp(-((ondas_ir - 2240) / 22) ** 2)
+            if sm["has_co"]:
+                transmitancia -= 60 * np.exp(-((ondas_ir - 1715) / 28) ** 2)
+            if anillos_arom > 0:
+                transmitancia -= 34 * np.exp(-((ondas_ir - 1595) / 32) ** 2)
+            if sm["has_c_o"]:
+                transmitancia -= 30 * np.exp(-((ondas_ir - 1120) / 45) ** 2)
 
-                if alertas:
-                    st.warning(f"Alertas PAINS / Brenk ({len(alertas)}): " + ", ".join(alertas))
-                else:
-                    st.success("Filtros PAINS / Brenk: Sin alertas estructurales detectadas.")
+            df_ir = pd.DataFrame({"Onda": ondas_ir, "Transmitancia": np.clip(transmitancia, 5, 100)})
+            chart_ir = (
+                alt.Chart(df_ir)
+                .mark_line(color="#84CC16", strokeWidth=2)
+                .encode(
+                    x=alt.X("Onda:Q", title="Número de Onda (cm⁻¹)", scale=alt.Scale(reverse=True), axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16")),
+                    y=alt.Y("Transmitancia:Q", title="% Transmitancia", axis=alt.Axis(grid=True, gridColor="rgba(132, 204, 22, 0.1)", labelColor="#D1FAE5", titleColor="#84CC16")),
+                )
+                .properties(height=155, background="transparent")
+                .configure_view(stroke=None)
+            )
+            st.caption("Espectro Infrarrojo (FT-IR por grupos funcionales SMARTS):")
+            st.altair_chart(chart_ir, use_container_width=True)
 
-                similares = top_similares_catalogo(smiles_activo, base_moleculas, top_n=2)
-                if similares:
-                    texto_sim = " • ".join([f"**{n}** ({f}) — `{s}`" for n, f, s in similares])
-                    st.caption(f"Más similares en catálogo (Tanimoto): {texto_sim}")
+            long_onda = np.linspace(200, 550, 180)
+            lambda_max = 215 + (anillos_arom * 40) + (hba * 5)
+            df_uv = pd.DataFrame({"Lambda": long_onda, "Absorbancia": 1.3 * np.exp(-((long_onda - lambda_max) / 25) ** 2)})
+            chart_uv = (
+                alt.Chart(df_uv)
+                .mark_area(
+                    color=alt.Gradient(gradient="linear", stops=[alt.GradientStop(color="#84CC16", offset=0), alt.GradientStop(color="rgba(6,78,59,0.1)", offset=1)], x1=1, y1=1, x2=1, y2=0),
+                    line={"color": "#84CC16", "strokeWidth": 2},
+                )
+                .encode(
+                    x=alt.X("Lambda:Q", title="Longitud de Onda (nm)", axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16")),
+                    y=alt.Y("Absorbancia:Q", title="Absorbancia (UA)", axis=alt.Axis(grid=True, gridColor="rgba(132, 204, 22, 0.1)", labelColor="#D1FAE5", titleColor="#84CC16")),
+                )
+                .properties(height=135, background="transparent")
+                .configure_view(stroke=None)
+            )
+            st.caption(f"Espectro UV-Vis estimado (λ max: {lambda_max} nm):")
+            st.altair_chart(chart_uv, use_container_width=True)
+
+        def render_adme():
+            st.markdown(f"<div class='sec-header'>{svg_section_icon('shield')}<span>Mapa BOILED-Egg (HIA vs BBB)</span></div>", unsafe_allow_html=True)
+            st.altair_chart(construir_boiled_egg(tpsa, logp, nombre_mol), use_container_width=True)
+
+            sol_cat = "Muy soluble" if log_s > -2 else ("Soluble" if log_s >= -4 else ("Moderada" if log_s >= -6 else "Poco soluble"))
+            reglas = [
+                ("Peso Molecular < 500 g/mol (Lipinski)", pm < 500, f"{pm:.1f}"),
+                ("Lipofilicidad LogP < 5 (Lipinski)", logp < 5, f"{logp:.2f}"),
+                ("Donantes H (HBD ≤ 5) / Aceptores H (HBA ≤ 10)", hbd <= 5 and hba <= 10, f"{hbd} / {hba}"),
+                ("TPSA ≤ 140 Å² & Rotables ≤ 10 (Veber)", tpsa <= 140 and rot_bonds <= 10, f"{tpsa:.1f} Å² | {rot_bonds}"),
+                (f"Solubilidad ESOL ({sol_cat})", log_s >= -4, f"LogS {log_s:.2f}"),
+            ]
+            for nombre, cumple, val in reglas:
+                color = "#84CC16" if cumple else "#f59e0b"
+                estado_txt = "CUMPLE" if cumple else "ALERTA"
+                st.markdown(
+                    f"<div style='display:flex; justify-content:space-between; background:rgba(2,22,17,0.72); padding:8px 12px; border-radius:8px; margin-bottom:6px; border-left:4px solid {color};'>"
+                    f"<span style='color:#E6F4EA; font-size:0.85rem;'>{nombre}</span>"
+                    f"<span style='font-family:\"JetBrains Mono\", monospace; color:{color}; font-weight:600; font-size:0.82rem;'>{val} · {estado_txt}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+            if alertas:
+                st.warning(f"Alertas PAINS / Brenk ({len(alertas)}): " + ", ".join(alertas))
+            else:
+                st.success("Filtros PAINS / Brenk: Sin alertas estructurales detectadas.")
+
+            similares = top_similares_catalogo(smiles_activo, base_moleculas, top_n=2)
+            if similares:
+                texto_sim = " • ".join([f"**{n}** ({f}) — `{s}`" for n, f, s in similares])
+                st.caption(f"Más similares en catálogo (Tanimoto): {texto_sim}")
+
+        with col_analisis:
+            vista = st.session_state.vista_nav
+            if vista == "mol":
+                render_cargas()
+            elif vista == "qm":
+                render_cuantica()
+            elif vista == "spec":
+                render_espectros()
+            elif vista == "adme":
+                render_adme()
+            else:
+                tab_quant, tab_qm, tab_spec, tab_adme = st.tabs(
+                    ["Cargas y Tabla", "Cuántica (TOM / TCC / L)", "Espectros", "ADME y BOILED-Egg"]
+                )
+                with tab_quant:
+                    render_cargas()
+                with tab_qm:
+                    render_cuantica()
+                with tab_spec:
+                    render_espectros()
+                with tab_adme:
+                    render_adme()
 
         with col_visor:
             st.markdown(f"<div class='sec-header'>{svg_section_icon('cube')}<span>Visor Molecular 3D y 2D</span></div>", unsafe_allow_html=True)
