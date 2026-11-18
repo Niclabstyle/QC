@@ -24,7 +24,7 @@ def load_font_base64(font_path):
 
 font_base64 = load_font_base64("NCLWickyBejari-Regular.ttf")
 
-# 2. CSS Avanzado con tu fuente Wicky Bejari integrada
+# 2. CSS Avanzado envuelto correctamente en <style>
 st.markdown(f"""
 <style>
     @font-face {{
@@ -39,61 +39,69 @@ st.markdown(f"""
         color: #f8fafc !important;
         font-family: 'Inter', sans-serif;
     }}
-    [data-testid="stSidebar"] {
+    
+    [data-testid="stSidebar"] {{
         background-color: #0d121f;
         border-right: 1px solid rgba(0, 245, 212, 0.15);
-    }
+    }}
     
-    /* Aplicar la fuente NCL Wicky Bejari a los títulos principales */
-    .hero-title, h4, h5, .protocol-title {
+    /* Aplicar la fuente Wicky Bejari a los títulos principales */
+    .hero-title, h4, h5, .protocol-title {{
         font-family: 'WickyBejari', serif !important;
         letter-spacing: 0.08em;
         font-size: 2.8rem;
-    }
+    }}
 
-    p, span, label, div, .stMarkdown {
+    p, span, label, div, .stMarkdown {{
         color: #e2e8f0 !important;
-    }
-    .hero-container {
+    }}
+    
+    .hero-container {{
         background: linear-gradient(135deg, rgba(0, 245, 212, 0.08) 0%, rgba(123, 44, 191, 0.12) 100%);
         border: 1px solid rgba(0, 245, 212, 0.3);
         border-radius: 16px;
         padding: 24px 30px;
         margin-bottom: 25px;
         backdrop-filter: blur(10px);
-    }
-    .hero-title {
+    }}
+    
+    .hero-title {{
         background: linear-gradient(90deg, #00f5d4 0%, #7b2cbf 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         margin-bottom: 0.2rem;
-    }
-    .hero-subtitle {
+    }}
+    
+    .hero-subtitle {{
         color: #cbd5e1 !important;
         font-size: 1.05rem;
         line-height: 1.5;
-    }
-    div[data-testid="stMetric"] {
+    }}
+    
+    div[data-testid="stMetric"] {{
         background: rgba(20, 28, 46, 0.75);
         backdrop-filter: blur(12px);
         border: 1px solid rgba(0, 245, 212, 0.3);
         border-radius: 14px;
         padding: 16px 20px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    }
-    div[data-testid="stMetricLabel"] {
+    }}
+    
+    div[data-testid="stMetricLabel"] {{
         color: #94a3b8 !important;
         font-size: 0.8rem !important;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-    }
-    div[data-testid="stMetricValue"] {
+    }}
+    
+    div[data-testid="stMetricValue"] {{
         color: #ffffff !important;
         font-size: 1.8rem !important;
         font-weight: 700 !important;
         font-family: 'WickyBejari', serif !important;
-    }
-    .protocol-card {
+    }}
+    
+    .protocol-card {{
         background: rgba(15, 23, 42, 0.9);
         border-left: 4px solid #00f5d4;
         border-radius: 8px;
@@ -102,21 +110,24 @@ st.markdown(f"""
         border-top: 1px solid rgba(255,255,255,0.1);
         border-right: 1px solid rgba(255,255,255,0.1);
         border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-    .protocol-warning {
+    }}
+    
+    .protocol-warning {{
         border-left-color: #f59e0b;
-    }
-    .protocol-title {
+    }}
+    
+    .protocol-title {{
         font-weight: 700;
         color: #00f5d4 !important;
         font-size: 1.1rem;
         margin-bottom: 6px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-    }
-    .protocol-warning .protocol-title {
+    }}
+    
+    .protocol-warning .protocol-title {{
         color: #fbbf24 !important;
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -242,3 +253,4 @@ else:
             Recristalización controlada por gradiente térmico o cromatografía flash en columna según polaridad.
         </div>
         """, unsafe_allow_html=True)
+    
