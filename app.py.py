@@ -12,8 +12,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CSS Avanzado con Tipografía Estilo Old Print (Imprenta / Vintage)
+# 2. CSS Avanzado envuelto correctamente en <style>
 st.markdown("""
+<style>
     @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@400;600&display=swap');
 
     .stApp {
