@@ -11,6 +11,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, QED, rdMolDescriptors
+from rdkit.Chem.Draw import rdMolDraw2D
 
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(
@@ -301,7 +302,6 @@ def analizar_molecula(smiles: str):
                 }
             )
 
-    # Generación y optimización de conformador 3D con fallbacks
     embed_status = AllChem.EmbedMolecule(mol_h, AllChem.ETKDGv3())
     if embed_status == -1:
         AllChem.EmbedMolecule(mol_h, AllChem.ETKDG(useRandomCoords=True))
@@ -313,7 +313,6 @@ def analizar_molecula(smiles: str):
 
     mol_block = Chem.MolToMolBlock(mol_h)
 
-    # Detección de grupos funcionales por SMARTS para IR
     smarts_checks = {
         "has_oh": mol.HasSubstructMatch(Chem.MolFromSmarts("[OX2H]")),
         "has_nh": mol.HasSubstructMatch(Chem.MolFromSmarts("[NX3;H2,H1;!$(NC=O)]")),
@@ -340,6 +339,41 @@ def analizar_molecula(smiles: str):
     }
 
 
+@st.cache_data(show_spinner=False)
+def generar_svg_2d(smiles: str, highlight_idx: int = -1) -> str:
+    mol_2d = Chem.MolFromSmiles(smiles)
+    if mol_2d is None:
+        return ""
+
+    AllChem.Compute2DCoords(mol_2d)
+    drawer = rdMolDraw2D.MolDraw2DSVG(420, 240)
+    opts = drawer.drawOptions()
+
+    if hasattr(rdMolDraw2D, "SetDarkMode"):
+        rdMolDraw2D.SetDarkMode(opts)
+    opts.setBackgroundColour((0.0, 0.0, 0.0, 0.0))
+    opts.bondLineWidth = 2.0
+
+    highlight_atoms = [highlight_idx] if 0 <= highlight_idx < mol_2d.GetNumAtoms() else []
+    highlight_colors = {highlight_idx: (1.0, 0.0, 0.5, 0.65)} if highlight_atoms else {}
+
+    drawer.DrawMolecule(
+        mol_2d,
+        highlightAtoms=highlight_atoms,
+        highlightAtomColors=highlight_colors,
+    )
+    drawer.FinishDrawing()
+    svg = drawer.GetDrawingText()
+
+    svg = re.sub(
+        r"width='[^']+'\s+height='[^']+'",
+        "style='width:100%; height:auto; max-height:220px;'",
+        svg,
+        count=1,
+    )
+    return svg
+
+
 # 5. HERO SECTION
 st.markdown(
     """
@@ -348,7 +382,7 @@ st.markdown(
     <div class="brand-title">PharmaChem AI Studio</div>
     <div class="hero-desc">
         Entorno quimioinformático de alto rendimiento con mapa de potencial electrostático (ESP) por cargas de Gasteiger,
-        espectroscopia basada en subestructuras SMARTS y sincronización directa entre la tabla atómica y el visor 3D.
+        estructura 2D SVG, espectroscopia SMARTS y sincronización directa entre la tabla atómica y los visores.
     </div>
 </div>
 """,
@@ -484,9 +518,9 @@ else:
             st.markdown(
                 """
             <div class="glass-panel">
-                <div class="sec-header" style="font-size: 1.1rem;">⚡ Sincronización Tabla → Visor 3D</div>
+                <div class="sec-header" style="font-size: 1.1rem;">⚡ Sincronización Tabla → Visor 3D y 2D</div>
                 <p style="font-size: 0.88rem; color: #D1FAE5; line-height: 1.45; margin: 0;">
-                    Selecciona cualquier fila de la tabla inferior para hacer zoom y resaltar ese átomo en el modelo 3D.
+                    Selecciona cualquier fila de la tabla inferior para enfocar y resaltar ese átomo tanto en el modelo 3D como en el diagrama 2D.
                 </p>
             </div>
             """,
@@ -520,7 +554,7 @@ else:
                         f"Carga: **{fila['Carga (e)']} e**"
                     )
             else:
-                st.caption("ℹ️ Haz clic en el margen izquierdo de una fila para enfocar el átomo en el visor 3D.")
+                st.caption("ℹ️ Haz clic en el margen izquierdo de una fila para enfocar el átomo en los visores.")
 
             dl1, dl2 = st.columns(2)
             dl1.download_button(
@@ -546,7 +580,7 @@ else:
 
             ondas_ir = np.linspace(600, 3900, 320)
             transmitancia = np.ones_like(ondas_ir) * 95.0
-            transmitancia -= 20 * np.exp(-((ondas_ir - 2940) / 55) ** 2)  # C-H alifático
+            transmitancia -= 20 * np.exp(-((ondas_ir - 2940) / 55) ** 2)
 
             sm = res["smarts"]
             if sm["has_oh"]:
@@ -662,7 +696,7 @@ else:
                 )
 
     with col_visor:
-        st.markdown('<div class="sec-header">⚛️ Motor 3D Interactivo</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-header">⚛️ Motor 3D & 2D Interactivo</div>', unsafe_allow_html=True)
 
         modo_3d = st.radio(
             "Modo de renderizado:",
@@ -676,7 +710,7 @@ else:
         )
 
         try:
-            viewer = py3Dmol.view(width="100%", height=390)
+            viewer = py3Dmol.view(width="100%", height=360)
             viewer.addModel(res["mol_block"], "mol")
 
             if "Esferas" in modo_3d:
@@ -687,7 +721,6 @@ else:
                     }
                 )
                 if selected_atom_id != -1:
-                    # En formato MOL de 3Dmol, serial es base-1 (atom.GetIdx() + 1)
                     serial_3dmol = selected_atom_id + 1
                     viewer.addStyle(
                         {"serial": serial_3dmol},
@@ -714,7 +747,6 @@ else:
                 viewer.zoomTo()
 
             else:
-                # Resalta heteroátomos polares (N, O, S, F) como nodos farmacofóricos
                 viewer.setStyle({"stick": {"radius": 0.15, "color": "#556B2F"}})
                 viewer.addStyle(
                     {"elem": ["N", "O", "S", "F"]},
@@ -751,7 +783,7 @@ else:
                 """
                 html_3d_code = re.sub(r"(viewer_\w+)\.render\(\);", esp_js, html_3d_code, count=1)
 
-            components.html(html_3d_code, height=405)
+            components.html(html_3d_code, height=375)
 
             if "ESP" in modo_3d:
                 st.markdown(
@@ -766,6 +798,20 @@ else:
                 )
             else:
                 st.caption("💡 Arrastra para rotar, usa la rueda para zoom o selecciona una fila en la tabla atómica.")
+
+            svg_2d = generar_svg_2d(smiles_activo, selected_atom_id)
+            if svg_2d:
+                st.markdown(
+                    f"""
+                    <div style="margin-top:10px; background:rgba(2,22,17,0.75); border:1px solid rgba(132,204,22,0.25); border-radius:12px; padding:12px;">
+                        <div style="font-size:0.75rem; color:#84CC16; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-family:'JetBrains Mono', monospace;">
+                            Estructura 2D (Esquelética)
+                        </div>
+                        {svg_2d}
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
         except Exception as e:
             st.error(f"Error en renderizado 3D: {e}")
 
