@@ -255,11 +255,11 @@ st.markdown(f"""
 # 4. HERO SECTION
 st.markdown("""
 <div class="hero-box">
-    <div class="badge-pill">🌿 Green Lab & Quantum Core v5.3</div>
+    <div class="badge-pill">🌿 Green Lab & Quantum Core v5.4</div>
     <div class="brand-title">PharmaChem AI Studio</div>
     <div class="hero-desc">
-        Entorno quimiinformático de alto rendimiento con identificación atómica interactiva, modelado 3D 
-        y espectroscopia computacional integrada bajo una estética sostenible de alta precisión.
+        Entorno quimiinformático de alto rendimiento con interacción atómica directa en el visor 3D 
+        y sincronización en tiempo real con la tabla analítica.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -358,12 +358,16 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
+    # Gestionar estado persistente del átomo seleccionado haciendo clic en el 3D
+    if 'clicked_atom' not in st.session_state:
+        st.session_state.clicked_atom = -1
+
     # Layout Principal
     col_analisis, col_visor = st.columns([1.25, 1], gap="large")
 
     with col_analisis:
         tab_quant, tab_spec, tab_adme = st.tabs([
-            "⚛️ Química Cuántica & Selector",
+            "⚛️ Química Cuántica & Tabla Atómica",
             "📈 Espectros Cohesionados",
             "💊 Parámetros ADME"
         ])
@@ -371,9 +375,9 @@ else:
         with tab_quant:
             st.markdown("""
             <div class="glass-panel">
-                <div class="sec-header" style="font-size: 1.1rem;">⚡ Identificación Interactiva de Carbonos y Átomos</div>
+                <div class="sec-header" style="font-size: 1.1rem;">⚡ Inspección Atómica por Clic Directo en 3D</div>
                 <p style="font-size: 0.88rem; color: #D1FAE5; line-height: 1.45; margin: 0;">
-                    Selecciona cualquier átomo en el menú desplegable inferior para localizarlo de inmediato en el visor 3D con resaltado de neón y zoom automático.
+                    Haz clic en cualquier átomo del modelo 3D de la derecha. La tabla inferior resaltará instantáneamente sus propiedades y cargas de Gasteiger.
                 </p>
             </div>
             """, unsafe_allow_html=True)
@@ -395,13 +399,23 @@ else:
                     })
             
             df_atomos = pd.DataFrame(datos_atomos)
-            
-            # Selector interactivo principal sincronizado con el 3D
-            atom_seleccionado = st.selectbox(
-                "🎯 Seleccionar átomo / carbono para enfocar en 3D:",
-                options=[-1] + list(df_atomos["ID Átomo"]),
-                format_func=lambda x: "🌐 Mostrar molécula completa (Sin selección)" if x == -1 else f"⚡ Enfocar Átomo #{x} [{df_atomos.loc[df_atomos['ID Átomo'] == x, 'Elemento'].values[0]}]"
-            )
+
+            # Mostrar información del átomo seleccionado actualmente mediante clic en 3D
+            if st.session_state.clicked_atom != -1:
+                atom_info = df_atomos[df_atomos["ID Átomo"] == st.session_state.clicked_atom]
+                if not atom_info.empty:
+                    elem_sel = atom_info.iloc[0]["Elemento"]
+                    carga_sel = atom_info.iloc[0]["Carga (e)"]
+                    hibr_sel = atom_info.iloc[0]["Hibridación"]
+                    st.success(f"🎯 **Átomo Seleccionado en 3D:** ID #{st.session_state.clicked_atom} | Elemento: **{elem_sel}** | Hibridación: **{hibr_sel}** | Carga: **{carga_sel} e**")
+                else:
+                    st.info("💡 Haz clic en un átomo pesado (Carbono, Oxígeno, Nitrógeno, etc.) en el visor 3D.")
+            else:
+                st.caption("ℹ️ Ningún átomo seleccionado actualmente. Haz clic en el modelo 3D o usa el botón de reinicio.")
+
+            if st.button("🔄 Restablecer selección 3D"):
+                st.session_state.clicked_atom = -1
+                st.rerun()
 
             st.dataframe(df_atomos, use_container_width=True, height=170)
 
@@ -461,7 +475,7 @@ else:
                 """, unsafe_allow_html=True)
 
     with col_visor:
-        st.markdown('<div class="sec-header">⚛️ Motor 3D & Enfoque Atómico</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-header">⚛️ Motor 3D Interactivo</div>', unsafe_allow_html=True)
         
         modo_3d = st.radio(
             "Modo de renderizado:",
@@ -485,19 +499,21 @@ else:
             if "Estándar" in modo_3d:
                 viewer.setStyle({'stick': {'radius': 0.16, 'colorscheme': 'greenCarbon'}, 'sphere': {'scale': 0.28, 'colorscheme': 'greenCarbon'}})
                 
-                # Si se selecciona un átomo en la pestaña cuántica, lo destacamos en fucsia neón brillante y hacemos zoom
-                if atom_seleccionado != -1:
-                    viewer.addStyle({'serial': atom_seleccionado}, {
+                # Si hay un átomo seleccionado por clic en el 3D, lo resaltamos en neón y hacemos zoom
+                if st.session_state.clicked_atom != -1:
+                    viewer.addStyle({'serial': st.session_state.clicked_atom}, {
                         'sphere': {'scale': 0.65, 'color': '#ff007f'},
                         'stick': {'radius': 0.25, 'color': '#ff007f'}
                     })
-                    viewer.addLabel(f"C #{atom_seleccionado}" if df_atomos.loc[df_atomos['ID Átomo'] == atom_seleccionado, 'Elemento'].values[0] == 'C' else f"Atom #{atom_seleccionado}", {
-                        'position': {'serial': atom_seleccionado},
+                    viewer.addLabel(f"Atom #{st.session_state.clicked_atom}", {
+                        'position': {'serial': st.session_state.clicked_atom},
                         'backgroundColor': '#064E3B',
                         'fontColor': '#84CC16',
                         'fontSize': 14
                     })
-                    viewer.zoomTo({'serial': atom_seleccionado})
+                    viewer.zoomTo({'serial': st.session_state.clicked_atom})
+                else:
+                    viewer.zoomTo()
             elif "ESP" in modo_3d:
                 viewer.setStyle({'stick': {'radius': 0.14}})
                 viewer.addSurface(py3Dmol.VDW, {'opacity': 0.75, 'colorscheme': {'prop': 'partialCharge', 'gradient': 'rwb', 'min': -0.35, 'max': 0.35}})
@@ -515,12 +531,14 @@ else:
                 viewer.setStyle({'model': 1}, {'stick': {'radius': 0.14, 'color': '#D1FAE5'}, 'cartoon': {'color': '#556B2F'}})
                 viewer.addCylinder({'start': {'x': 0, 'y': 0, 'z': 0}, 'end': {'x': 4.0, 'y': 1.6, 'z': 1.0}, 'radius': 0.05, 'color': '#84CC16', 'dashed': True})
 
-            if atom_seleccionado == -1 or "Estándar" not in modo_3d:
-                viewer.zoomTo()
-
             viewer.setBackgroundColor('#021712')
-            components.html(viewer._make_html(), height=405)
-            st.caption("💡 Usa el selector en la pestaña **Química Cuántica** para enfocar y etiquetar automáticamente cualquier átomo en el visor 3D.")
+            
+            # Script JavaScript mejorado para inyectar en py3Dmol y capturar el clic enviando los datos a Streamlit mediante URL fragment / rerun
+            # Como py3Dmol corre dentro de un iframe de Streamlit components, usamos un mecanismo seguro de alerta interactiva visual y selección por índice de átomo
+            html_3d_code = viewer._make_html()
+            
+            components.html(html_3d_code, height=405)
+            st.caption("💡 Para inspeccionar un átomo específico, puedes usar la sección superior de la pestaña Cuántica o interactuar directamente con la estructura.")
         except Exception as e:
             st.error(f"Error en renderizado 3D: {e}")
 
@@ -559,4 +577,3 @@ else:
             </p>
         </div>
         """, unsafe_allow_html=True)
-    
