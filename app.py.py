@@ -37,7 +37,7 @@ font_face_rule = f"""
 }}
 """ if font_base64 else ""
 
-# 3. SISTEMA DE DISEÑO CSS ULTRA-SMOOTH & GLASSMORPHISM
+# 3. SISTEMA DE DISEÑO CSS ULTRA-SMOOTH & GLASSMORPHISM (CON CORRECCIÓN DE CONTRASTE)
 st.markdown(f"""
 <style>
     {font_face_rule}
@@ -249,28 +249,18 @@ st.markdown(f"""
         color: #E6F4EA !important;
         border-color: rgba(132, 204, 22, 0.3) !important;
     }}
+
     /* ==========================================
        CORRECCIÓN GLOBAL DE CONTRASTE (TEXTO CLARO)
        ========================================== */
-    p, span, label, div, .stMarkdown, .stText, .streamlit-expanderHeader, .css-10trblm {
+    p, span, label, div, .stMarkdown, .stText {{
         color: #E6F4EA !important;
-    }
+    }}
 
-    /* Forzar texto claro en tablas y DataFrames */
-    .stDataFrame, .dataframe, th, td {
+    .stDataFrame, .dataframe, th, td {{
         color: #E6F4EA !important;
         background-color: transparent !important;
-    }
-
-    /* Textos dentro de selectbox e inputs */
-    .stSelectbox div[data-baseweb="select"] span, input {
-        color: #FFFFFF !important;
-    }
-
-    /* Títulos de pestañas */
-    .stTabs [data-baseweb="tab"] {
-        color: #D1FAE5 !important;
-    }
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -422,7 +412,7 @@ else:
         with tab_spec:
             st.markdown('<div class="sec-header" style="font-size: 1.1rem;">📉 Espectroscopia de Absorción Integrada</div>', unsafe_allow_html=True)
             
-            # --- Gráfico IR con Altair (Cohesionado con la paleta de verdes) ---
+            # --- Gráfico IR con Altair ---
             ondas_ir = np.linspace(600, 3900, 300)
             transmitancia = np.ones_like(ondas_ir) * 94.0
             transmitancia -= 22 * np.exp(-((ondas_ir - 2940) / 55) ** 2)
@@ -548,3 +538,4 @@ else:
             </p>
         </div>
         """, unsafe_allow_html=True)
+    
