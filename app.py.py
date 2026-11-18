@@ -813,6 +813,7 @@ def analizar_molecula(smiles: str):
     mol_block = Chem.MolToMolBlock(mol_h)
 
     smarts_checks = {
+        "has_ch_alif": mol.HasSubstructMatch(Chem.MolFromSmarts("[CX4H]")),
         "has_oh": mol.HasSubstructMatch(Chem.MolFromSmarts("[OX2H]")),
         "has_nh": mol.HasSubstructMatch(Chem.MolFromSmarts("[NX3;H2,H1;!$(NC=O)]")),
         "has_co": mol.HasSubstructMatch(Chem.MolFromSmarts("[CX3]=[OX1]")),
@@ -903,12 +904,16 @@ def construir_boiled_egg(tpsa_val: float, wlogp_val: float, nombre_mol: str):
     df_elipses = pd.concat([df_hia, df_bbb], ignore_index=True)
     df_punto = pd.DataFrame([{"TPSA": tpsa_val, "WLOGP": wlogp_val, "Compuesto": nombre_mol}])
 
+    tpsa_max = max(180.0, float(tpsa_val) + 15.0)
+    wlogp_min = min(-3.0, float(wlogp_val) - 1.0)
+    wlogp_max = max(7.5, float(wlogp_val) + 1.0)
+
     capa_elipses = (
         alt.Chart(df_elipses)
         .mark_line(strokeWidth=2)
         .encode(
-            x=alt.X("TPSA:Q", title="TPSA (Å²)", scale=alt.Scale(domain=[0, 180]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
-            y=alt.Y("WLOGP:Q", title="WLOGP", scale=alt.Scale(domain=[-3, 7.5]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+            x=alt.X("TPSA:Q", title="TPSA (Å²)", scale=alt.Scale(domain=[0, tpsa_max]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+            y=alt.Y("WLOGP:Q", title="WLOGP", scale=alt.Scale(domain=[wlogp_min, wlogp_max]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
             color=alt.Color("Zona:N", scale=alt.Scale(domain=["HIA (Absorción GI)", "BBB (Cruce Cerebral)"], range=["#D1FAE5", "#facc15"]), legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16")),
             order="order:Q",
         )
@@ -992,7 +997,7 @@ st.markdown(
     f"<div><div class='brand-title'>PharmaChem AI Studio</div>"
     f"<div class='hero-sub'>Química Cuántica (TOM / TCC / L), Mapa ESP Gasteiger, BOILED-Egg y Comparador Estructural</div>"
     f"</div></div>"
-    f"<div class='badge-pill'>Green Lab &amp; Quantum Core v8.6</div>"
+    f"<div class='badge-pill'>Green Lab &amp; Quantum Core v8.7</div>"
     f"</div>",
     unsafe_allow_html=True,
 )
@@ -1388,8 +1393,13 @@ else:
             st.markdown(f"<div class='sec-header'>{svg_section_icon('atom')}<span>Espectroscopia Simulada (SMARTS)</span></div>", unsafe_allow_html=True)
 
             ondas_ir = np.linspace(600, 3900, 320)
-            transmitancia = np.ones_like(ondas_ir) * 95.0 - 20 * np.exp(-((ondas_ir - 2940) / 55) ** 2)
+            transmitancia = np.ones_like(ondas_ir) * 95.0
             sm = res["smarts"]
+            if sm["has_ch_alif"]:
+                transmitancia -= 22 * np.exp(-((ondas_ir - 2940) / 55) ** 2)
+            if anillos_arom > 0:
+                transmitancia -= 18 * np.exp(-((ondas_ir - 3050) / 40) ** 2)
+                transmitancia -= 34 * np.exp(-((ondas_ir - 1595) / 32) ** 2)
             if sm["has_oh"]:
                 transmitancia -= 42 * np.exp(-((ondas_ir - 3360) / 130) ** 2)
             if sm["has_nh"]:
@@ -1398,8 +1408,6 @@ else:
                 transmitancia -= 38 * np.exp(-((ondas_ir - 2240) / 22) ** 2)
             if sm["has_co"]:
                 transmitancia -= 60 * np.exp(-((ondas_ir - 1715) / 28) ** 2)
-            if anillos_arom > 0:
-                transmitancia -= 34 * np.exp(-((ondas_ir - 1595) / 32) ** 2)
             if sm["has_c_o"]:
                 transmitancia -= 30 * np.exp(-((ondas_ir - 1120) / 45) ** 2)
 
