@@ -1,24 +1,27 @@
+import base64
+import json
+import os
+import re
+
+import altair as alt
+import numpy as np
+import pandas as pd
+import py3Dmol
 import streamlit as st
 import streamlit.components.v1 as components
 from rdkit import Chem
-from rdkit.Chem import Descriptors, AllChem, rdMolDescriptors
-import py3Dmol
-import numpy as np
-import pandas as pd
-import altair as alt
-import base64
-import os
+from rdkit.Chem import AllChem, Descriptors, QED, rdMolDescriptors
 
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(
     page_title="PharmaChem AI | Quantum & Green Cheminformatics",
     page_icon="🌿",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # 2. INYECCIÓN DE TIPOGRAFÍA PERSONALIZADA (NCL Wicky Bejari)
-def get_font_base64(font_path):
+def get_font_base64(font_path: str) -> str:
     if os.path.exists(font_path):
         try:
             with open(font_path, "rb") as f:
@@ -27,18 +30,24 @@ def get_font_base64(font_path):
             return ""
     return ""
 
+
 font_base64 = get_font_base64("NCLWickyBejari-Regular.ttf")
-font_face_rule = f"""
+font_face_rule = (
+    f"""
 @font-face {{
     font-family: 'WickyBejari';
     src: url(data:font/ttf;charset=utf-8;base64,{font_base64}) format('truetype');
     font-weight: normal;
     font-style: normal;
 }}
-""" if font_base64 else ""
+"""
+    if font_base64
+    else ""
+)
 
 # 3. SISTEMA DE DISEÑO CSS ULTRA-SMOOTH & GLASSMORPHISM
-st.markdown(f"""
+st.markdown(
+    f"""
 <style>
     {font_face_rule}
     @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -55,7 +64,7 @@ st.markdown(f"""
 
     .stApp {{
         background: radial-gradient(circle at 15% 10%, #064E3B 0%, #021a14 45%, #010c09 100%) !important;
-        color: var(--mint-pale) !important;
+        color: var(--mint-pale);
         font-family: 'Inter', sans-serif !important;
     }}
 
@@ -110,7 +119,7 @@ st.markdown(f"""
         display: inline-block;
         background: rgba(132, 204, 22, 0.12);
         border: 1px solid #84CC16;
-        color: #84CC16;
+        color: #84CC16 !important;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.72rem;
         padding: 3px 10px;
@@ -122,7 +131,7 @@ st.markdown(f"""
 
     .kpi-grid {{
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
         gap: 12px;
         margin-bottom: 18px;
     }}
@@ -147,7 +156,7 @@ st.markdown(f"""
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.07em;
-        opacity: 0.8;
+        opacity: 0.85;
         margin-bottom: 4px;
     }}
 
@@ -162,7 +171,7 @@ st.markdown(f"""
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.7rem;
         color: var(--mint-pale);
-        opacity: 0.65;
+        opacity: 0.7;
         margin-top: 3px;
     }}
 
@@ -241,68 +250,24 @@ st.markdown(f"""
         border-color: rgba(132, 204, 22, 0.3) !important;
     }}
 
-    p, span, label, div, .stMarkdown, .stText {{
-        color: #E6F4EA !important;
-    }}
-
-    .stDataFrame, .dataframe, th, td {{
-        color: #E6F4EA !important;
-        background-color: transparent !important;
+    .stMarkdown p, .stMarkdown li, label[data-testid="stWidgetLabel"] p {{
+        color: #E6F4EA;
     }}
 </style>
-""", unsafe_allow_html=True)
-
-# 4. HERO SECTION
-st.markdown("""
-<div class="hero-box">
-    <div class="badge-pill">🌿 Green Lab & Quantum Core v5.4</div>
-    <div class="brand-title">PharmaChem AI Studio</div>
-    <div class="hero-desc">
-        Entorno quimiinformático de alto rendimiento con interacción atómica directa en el visor 3D 
-        y sincronización en tiempo real con la tabla analítica.
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# 5. BASE DE DATOS DE COMPUESTOS
-base_moleculas = {
-    "CC(=O)OC1=CC=CC=C1C(=O)O": ("Aspirina", "Analgésico / Antiinflamatorio", "C9H8O4"),
-    "CN1C=NC2=C1C(=O)N(C(=O)N2C)C": ("Cafeína", "Alcaloide / Estimulante SNC", "C8H10N4O2"),
-    "CC(=O)NC1=CC=C(O)C=C1": ("Paracetamol", "Antipirético / Analgésico", "C8H9NO2"),
-    "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O": ("Ibuprofeno", "AINE / Inhibidor COX", "C13H18O2"),
-    "CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34C": ("Testosterona", "Hormona Esteroidea", "C19H28O2"),
-    "CN[C@@H](C[C@@H](C1=CC=C(C=C1)O)O)O": ("Adrenalina (Epinefrina)", "Neurotransmisor", "C9H13NO3"),
-    "CC1=C(C=C(C=C1)NC(=O)C2=CC=C(C=C2)CN3CCN(CC3)C)NC4=NC=CC(=N4)C5=CC=CN=C5": ("Imatinib", "Inhibidor Quinasa", "C29H31N7O"),
-    "CC(=O)O": ("Ácido Acético", "Disolvente Verde", "C2H4O2"),
-    "C1=CC=C(C=C1)O": ("Fenol", "Precursor Orgánico", "C6H6O"),
-    "CN1CCC[C@H]1C2=CN=CC=C2": ("Nicotina", "Alcaloide Natural", "C10H14N2")
-}
-
-# 6. BARRA LATERAL
-st.sidebar.markdown('<div class="sec-header">🔍 Explorador</div>', unsafe_allow_html=True)
-query_busqueda = st.sidebar.text_input("Filtrar compuesto o fórmula:", placeholder="Ej: Cafeína, Imatinib...").strip().lower()
-
-filtradas = {k: v for k, v in base_moleculas.items() if query_busqueda in v[0].lower() or query_busqueda in v[1].lower() or query_busqueda in k.lower()}
-if not filtradas:
-    filtradas = base_moleculas
-
-seleccion = st.sidebar.selectbox(
-    "Espécimen activo:",
-    options=list(filtradas.keys()) + ["CUSTOM"],
-    format_func=lambda x: f"{filtradas[x][0]} ({filtradas[x][2]})" if x in filtradas else "✍️ SMILES personalizado..."
+""",
+    unsafe_allow_html=True,
 )
 
-smiles_activo = st.sidebar.text_input("Estructura SMILES:", "CCO") if seleccion == "CUSTOM" else seleccion
 
-# 7. PROCESAMIENTO RDKIT
-mol = Chem.MolFromSmiles(smiles_activo)
+# 4. PROCESAMIENTO QUIMIOINFORMÁTICO CACHEADO
+@st.cache_data(show_spinner=False)
+def analizar_molecula(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
 
-if mol is None:
-    st.error("❌ Error de sintaxis SMILES: Ingrese una cadena química válida.")
-else:
-    info_comp = base_moleculas.get(smiles_activo, ("Compuesto Investigacional", "Personalizado", rdMolDescriptors.CalcMolFormula(mol)))
-    nombre_mol, clase_mol, formula_mol = info_comp
-
+    smiles_can = Chem.MolToSmiles(mol)
+    formula = rdMolDescriptors.CalcMolFormula(mol)
     pm = Descriptors.MolWt(mol)
     logp = Descriptors.MolLogP(mol)
     tpsa = Descriptors.TPSA(mol)
@@ -310,19 +275,159 @@ else:
     hba = Descriptors.NumHAcceptors(mol)
     rot_bonds = Descriptors.NumRotatableBonds(mol)
     anillos_arom = rdMolDescriptors.CalcNumAromaticRings(mol)
+    qed_score = QED.qed(mol)
 
     mol_h = Chem.AddHs(mol)
     AllChem.ComputeGasteigerCharges(mol_h)
-    cargas = [float(atom.GetProp('_GasteigerCharge')) for atom in mol_h.GetAtoms() if not np.isnan(float(atom.GetProp('_GasteigerCharge')))]
-    carga_min = min(cargas) if cargas else -0.25
-    carga_max = max(cargas) if cargas else 0.25
 
+    cargas_esp = []
+    datos_atomos = []
+    for atom in mol_h.GetAtoms():
+        try:
+            q = float(atom.GetProp("_GasteigerCharge"))
+            q_safe = 0.0 if (np.isnan(q) or np.isinf(q)) else round(q, 4)
+        except Exception:
+            q_safe = 0.0
+        cargas_esp.append(q_safe)
+
+        if atom.GetSymbol() != "H":
+            datos_atomos.append(
+                {
+                    "ID Átomo": atom.GetIdx(),
+                    "Elemento": atom.GetSymbol(),
+                    "Hibridación": str(atom.GetHybridization()),
+                    "Aromático": "Sí" if atom.GetIsAromatic() else "No",
+                    "Carga (e)": q_safe,
+                }
+            )
+
+    # Generación y optimización de conformador 3D con fallbacks
+    embed_status = AllChem.EmbedMolecule(mol_h, AllChem.ETKDGv3())
+    if embed_status == -1:
+        AllChem.EmbedMolecule(mol_h, AllChem.ETKDG(useRandomCoords=True))
+
+    if AllChem.MMFFHasAllMoleculeParams(mol_h):
+        AllChem.MMFFOptimizeMolecule(mol_h)
+    else:
+        AllChem.UFFOptimizeMolecule(mol_h)
+
+    mol_block = Chem.MolToMolBlock(mol_h)
+
+    # Detección de grupos funcionales por SMARTS para IR
+    smarts_checks = {
+        "has_oh": mol.HasSubstructMatch(Chem.MolFromSmarts("[OX2H]")),
+        "has_nh": mol.HasSubstructMatch(Chem.MolFromSmarts("[NX3;H2,H1;!$(NC=O)]")),
+        "has_co": mol.HasSubstructMatch(Chem.MolFromSmarts("[CX3]=[OX1]")),
+        "has_cn": mol.HasSubstructMatch(Chem.MolFromSmarts("[CX2]#[NX1]")),
+        "has_c_o": mol.HasSubstructMatch(Chem.MolFromSmarts("[CX4]-[OX2]")),
+    }
+
+    return {
+        "smiles_can": smiles_can,
+        "formula": formula,
+        "pm": pm,
+        "logp": logp,
+        "tpsa": tpsa,
+        "hbd": hbd,
+        "hba": hba,
+        "rot_bonds": rot_bonds,
+        "anillos_arom": anillos_arom,
+        "qed": qed_score,
+        "cargas_esp": cargas_esp,
+        "datos_atomos": datos_atomos,
+        "mol_block": mol_block,
+        "smarts": smarts_checks,
+    }
+
+
+# 5. HERO SECTION
+st.markdown(
+    """
+<div class="hero-box">
+    <div class="badge-pill">🌿 Green Lab & Quantum Core v5.5</div>
+    <div class="brand-title">PharmaChem AI Studio</div>
+    <div class="hero-desc">
+        Entorno quimioinformático de alto rendimiento con mapa de potencial electrostático (ESP) por cargas de Gasteiger,
+        espectroscopia basada en subestructuras SMARTS y sincronización directa entre la tabla atómica y el visor 3D.
+    </div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+# 6. BASE DE DATOS DE COMPUESTOS
+base_moleculas = {
+    "CC(=O)OC1=CC=CC=C1C(=O)O": ("Aspirina", "Analgésico / Antiinflamatorio", "C9H8O4"),
+    "CN1C=NC2=C1C(=O)N(C(=O)N2C)C": ("Cafeína", "Alcaloide / Estimulante SNC", "C8H10N4O2"),
+    "CC(=O)NC1=CC=C(O)C=C1": ("Paracetamol", "Antipirético / Analgésico", "C8H9NO2"),
+    "CC(C)CC1=CC=C(C=C1)C(C)C(=O)O": ("Ibuprofeno", "AINE / Inhibidor COX", "C13H18O2"),
+    "CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34C": ("Testosterona", "Hormona Esteroidea", "C19H28O2"),
+    "CN[C@@H](C[C@@H](C1=CC=C(C=C1)O)O)O": ("Adrenalina (Epinefrina)", "Neurotransmisor", "C9H13NO3"),
+    "CC1=C(C=C(C=C1)NC(=O)C2=CC=C(C=C2)CN3CCN(CC3)C)NC4=NC=CC(=N4)C5=CC=CN=C5": (
+        "Imatinib",
+        "Inhibidor Quinasa",
+        "C29H31N7O",
+    ),
+    "CC(=O)O": ("Ácido Acético", "Disolvente Verde", "C2H4O2"),
+    "C1=CC=C(C=C1)O": ("Fenol", "Precursor Orgánico", "C6H6O"),
+    "CN1CCC[C@H]1C2=CN=CC=C2": ("Nicotina", "Alcaloide Natural", "C10H14N2"),
+}
+
+# 7. BARRA LATERAL
+st.sidebar.markdown('<div class="sec-header">🔍 Explorador</div>', unsafe_allow_html=True)
+query_busqueda = (
+    st.sidebar.text_input("Filtrar compuesto o fórmula:", placeholder="Ej: Cafeína, Imatinib...")
+    .strip()
+    .lower()
+)
+
+filtradas = {
+    k: v
+    for k, v in base_moleculas.items()
+    if query_busqueda in v[0].lower() or query_busqueda in v[1].lower() or query_busqueda in k.lower()
+}
+if not filtradas:
+    filtradas = base_moleculas
+
+seleccion = st.sidebar.selectbox(
+    "Espécimen activo:",
+    options=list(filtradas.keys()) + ["CUSTOM"],
+    format_func=lambda x: f"{filtradas[x][0]} ({filtradas[x][2]})" if x in filtradas else "✍️ SMILES personalizado...",
+)
+
+smiles_activo = st.sidebar.text_input("Estructura SMILES:", "CCO").strip() if seleccion == "CUSTOM" else seleccion
+
+# 8. ANÁLISIS Y RENDERIZADO
+res = analizar_molecula(smiles_activo)
+
+if res is None:
+    st.error("❌ Error de sintaxis SMILES: Ingrese una cadena química válida.")
+else:
+    info_comp = base_moleculas.get(
+        smiles_activo, ("Compuesto Investigacional", "Personalizado", res["formula"])
+    )
+    nombre_mol, clase_mol, formula_mol = info_comp
+
+    pm = res["pm"]
+    logp = res["logp"]
+    tpsa = res["tpsa"]
+    hbd = res["hbd"]
+    hba = res["hba"]
+    rot_bonds = res["rot_bonds"]
+    anillos_arom = res["anillos_arom"]
+    qed_score = res["qed"]
+    cargas_esp = res["cargas_esp"]
+    max_abs_q = max([abs(q) for q in cargas_esp] + [0.25])
+    carga_max = max(cargas_esp) if cargas_esp else 0.0
+
+    # Estimación heurística rápida (no DFT)
     homo_est = round(-6.85 + (anillos_arom * 0.32) + (hba * 0.08), 2)
     lumo_est = round(-1.15 - (anillos_arom * 0.28) - (hbd * 0.06), 2)
     band_gap = round(abs(lumo_est - homo_est), 2)
 
     # Header del espécimen
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="specimen-bar">
         <div>
             <div style="font-size: 0.78rem; color: #84CC16; text-transform: uppercase; letter-spacing: 0.08em;">Espécimen Activo • {clase_mol}</div>
@@ -330,10 +435,13 @@ else:
         </div>
         <div class="smiles-tag">SMILES: {smiles_activo}</div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     # Tarjetas KPI
-    st.markdown(f"""
+    st.markdown(
+        f"""
     <div class="kpi-grid">
         <div class="kpi-card">
             <div class="kpi-label">Peso Molecular</div>
@@ -351,229 +459,357 @@ else:
             <div class="kpi-sub">Superficie Polar</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-label">Band Gap HOMO-LUMO</div>
-            <div class="kpi-val">{band_gap} eV</div>
-            <div class="kpi-sub">Estabilidad Cuántica</div>
+            <div class="kpi-label">Índice QED</div>
+            <div class="kpi-val">{qed_score:.2f}</div>
+            <div class="kpi-sub">Drug-likeness (0–1)</div>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    # Gestionar estado persistente del átomo seleccionado haciendo clic en el 3D
-    if 'clicked_atom' not in st.session_state:
-        st.session_state.clicked_atom = -1
-
-    # Layout Principal
     col_analisis, col_visor = st.columns([1.25, 1], gap="large")
+    selected_atom_id = -1
 
     with col_analisis:
-        tab_quant, tab_spec, tab_adme = st.tabs([
-            "⚛️ Química Cuántica & Tabla Atómica",
-            "📈 Espectros Cohesionados",
-            "💊 Parámetros ADME"
-        ])
+        tab_quant, tab_spec, tab_adme = st.tabs(
+            [
+                "⚛️ Cargas & Tabla Atómica",
+                "📈 Espectros Cohesionados",
+                "💊 Parámetros ADME",
+            ]
+        )
 
         with tab_quant:
-            st.markdown("""
+            st.markdown(
+                """
             <div class="glass-panel">
-                <div class="sec-header" style="font-size: 1.1rem;">⚡ Inspección Atómica por Clic Directo en 3D</div>
+                <div class="sec-header" style="font-size: 1.1rem;">⚡ Sincronización Tabla → Visor 3D</div>
                 <p style="font-size: 0.88rem; color: #D1FAE5; line-height: 1.45; margin: 0;">
-                    Haz clic en cualquier átomo del modelo 3D de la derecha. La tabla inferior resaltará instantáneamente sus propiedades y cargas de Gasteiger.
+                    Selecciona cualquier fila de la tabla inferior para hacer zoom y resaltar ese átomo en el modelo 3D.
                 </p>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
             q1, q2, q3 = st.columns(3)
-            q1.metric("Orbital HOMO", f"{homo_est} eV")
-            q2.metric("Orbital LUMO", f"{lumo_est} eV")
-            q3.metric("Carga Extrema", f"+{carga_max:.3f} e")
+            q1.metric("HOMO (Est. empírica)", f"{homo_est} eV")
+            q2.metric("LUMO (Est. empírica)", f"{lumo_est} eV")
+            q3.metric("Band Gap / Carga Máx.", f"{band_gap} eV / +{carga_max:.3f} e")
 
-            datos_atomos = []
-            for atom in mol_h.GetAtoms():
-                if atom.GetSymbol() != 'H':
-                    datos_atomos.append({
-                        "ID Átomo": atom.GetIdx(),
-                        "Elemento": atom.GetSymbol(),
-                        "Hibridación": str(atom.GetHybridization()),
-                        "Aromático": "Sí" if atom.GetIsAromatic() else "No",
-                        "Carga (e)": round(float(atom.GetProp('_GasteigerCharge')), 4)
-                    })
-            
-            df_atomos = pd.DataFrame(datos_atomos)
+            df_atomos = pd.DataFrame(res["datos_atomos"])
+            event = st.dataframe(
+                df_atomos,
+                use_container_width=True,
+                height=195,
+                hide_index=True,
+                on_select="rerun",
+                selection_mode="single-row",
+            )
 
-            # Mostrar información del átomo seleccionado actualmente mediante clic en 3D
-            if st.session_state.clicked_atom != -1:
-                atom_info = df_atomos[df_atomos["ID Átomo"] == st.session_state.clicked_atom]
-                if not atom_info.empty:
-                    elem_sel = atom_info.iloc[0]["Elemento"]
-                    carga_sel = atom_info.iloc[0]["Carga (e)"]
-                    hibr_sel = atom_info.iloc[0]["Hibridación"]
-                    st.success(f"🎯 **Átomo Seleccionado en 3D:** ID #{st.session_state.clicked_atom} | Elemento: **{elem_sel}** | Hibridación: **{hibr_sel}** | Carga: **{carga_sel} e**")
-                else:
-                    st.info("💡 Haz clic en un átomo pesado (Carbono, Oxígeno, Nitrógeno, etc.) en el visor 3D.")
+            if event.selection.rows:
+                row_idx = event.selection.rows[0]
+                if row_idx < len(df_atomos):
+                    fila = df_atomos.iloc[row_idx]
+                    selected_atom_id = int(fila["ID Átomo"])
+                    st.success(
+                        f"🎯 **Átomo Seleccionado:** ID #{selected_atom_id} | "
+                        f"Elemento: **{fila['Elemento']}** | "
+                        f"Hibridación: **{fila['Hibridación']}** | "
+                        f"Carga: **{fila['Carga (e)']} e**"
+                    )
             else:
-                st.caption("ℹ️ Ningún átomo seleccionado actualmente. Haz clic en el modelo 3D o usa el botón de reinicio.")
+                st.caption("ℹ️ Haz clic en el margen izquierdo de una fila para enfocar el átomo en el visor 3D.")
 
-            if st.button("🔄 Restablecer selección 3D"):
-                st.session_state.clicked_atom = -1
-                st.rerun()
-
-            st.dataframe(df_atomos, use_container_width=True, height=170)
+            dl1, dl2 = st.columns(2)
+            dl1.download_button(
+                "⬇️ Descargar CSV de cargas",
+                data=df_atomos.to_csv(index=False).encode("utf-8"),
+                file_name=f"{nombre_mol.lower().replace(' ', '_')}_cargas.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+            dl2.download_button(
+                "⬇️ Descargar estructura 3D (.mol)",
+                data=res["mol_block"],
+                file_name=f"{nombre_mol.lower().replace(' ', '_')}.mol",
+                mime="chemical/x-mdl-molfile",
+                use_container_width=True,
+            )
 
         with tab_spec:
-            st.markdown('<div class="sec-header" style="font-size: 1.1rem;">📉 Espectroscopia de Absorción Integrada</div>', unsafe_allow_html=True)
-            
-            ondas_ir = np.linspace(600, 3900, 300)
-            transmitancia = np.ones_like(ondas_ir) * 94.0
-            transmitancia -= 22 * np.exp(-((ondas_ir - 2940) / 55) ** 2)
-            if hbd > 0:
-                transmitancia -= 40 * np.exp(-((ondas_ir - 3350) / 120) ** 2)
-            if "C=O" in smiles_activo or "(=O)" in smiles_activo:
-                transmitancia -= 60 * np.exp(-((ondas_ir - 1710) / 30) ** 2)
-            if anillos_arom > 0:
-                transmitancia -= 35 * np.exp(-((ondas_ir - 1595) / 35) ** 2)
+            st.markdown(
+                '<div class="sec-header" style="font-size: 1.1rem;">📉 Espectroscopia Simulada (SMARTS)</div>',
+                unsafe_allow_html=True,
+            )
 
-            df_ir = pd.DataFrame({"Onda": ondas_ir, "Transmitancia": transmitancia})
-            chart_ir = alt.Chart(df_ir).mark_line(color="#84CC16", strokeWidth=2).encode(
-                x=alt.X('Onda:Q', title='Número de Onda (cm⁻¹)', scale=alt.Scale(reverse=True), axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16")),
-                y=alt.Y('Transmitancia:Q', title='% Transmitancia', axis=alt.Axis(grid=True, gridColor="rgba(132, 204, 22, 0.1)", labelColor="#D1FAE5", titleColor="#84CC16"))
-            ).properties(height=150, background='transparent').configure_view(stroke=None)
-            
-            st.caption("Espectro Infrarrojo (FT-IR Custom):")
+            ondas_ir = np.linspace(600, 3900, 320)
+            transmitancia = np.ones_like(ondas_ir) * 95.0
+            transmitancia -= 20 * np.exp(-((ondas_ir - 2940) / 55) ** 2)  # C-H alifático
+
+            sm = res["smarts"]
+            if sm["has_oh"]:
+                transmitancia -= 42 * np.exp(-((ondas_ir - 3360) / 130) ** 2)
+            if sm["has_nh"]:
+                transmitancia -= 28 * np.exp(-((ondas_ir - 3310) / 55) ** 2)
+            if sm["has_cn"]:
+                transmitancia -= 38 * np.exp(-((ondas_ir - 2240) / 22) ** 2)
+            if sm["has_co"]:
+                transmitancia -= 60 * np.exp(-((ondas_ir - 1715) / 28) ** 2)
+            if anillos_arom > 0:
+                transmitancia -= 34 * np.exp(-((ondas_ir - 1595) / 32) ** 2)
+            if sm["has_c_o"]:
+                transmitancia -= 30 * np.exp(-((ondas_ir - 1120) / 45) ** 2)
+
+            df_ir = pd.DataFrame({"Onda": ondas_ir, "Transmitancia": np.clip(transmitancia, 5, 100)})
+            chart_ir = (
+                alt.Chart(df_ir)
+                .mark_line(color="#84CC16", strokeWidth=2)
+                .encode(
+                    x=alt.X(
+                        "Onda:Q",
+                        title="Número de Onda (cm⁻¹)",
+                        scale=alt.Scale(reverse=True),
+                        axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16"),
+                    ),
+                    y=alt.Y(
+                        "Transmitancia:Q",
+                        title="% Transmitancia",
+                        axis=alt.Axis(
+                            grid=True,
+                            gridColor="rgba(132, 204, 22, 0.1)",
+                            labelColor="#D1FAE5",
+                            titleColor="#84CC16",
+                        ),
+                    ),
+                )
+                .properties(height=155, background="transparent")
+                .configure_view(stroke=None)
+            )
+
+            st.caption("Espectro Infrarrojo (FT-IR por grupos funcionales SMARTS):")
             st.altair_chart(chart_ir, use_container_width=True)
 
             long_onda = np.linspace(200, 550, 180)
             lambda_max = 215 + (anillos_arom * 40) + (hba * 5)
             absorbancia = 1.3 * np.exp(-((long_onda - lambda_max) / 25) ** 2)
             df_uv = pd.DataFrame({"Lambda": long_onda, "Absorbancia": absorbancia})
-            
-            chart_uv = alt.Chart(df_uv).mark_area(
-                color=alt.Gradient(gradient='linear', stops=[alt.GradientStop(color='#84CC16', offset=0), alt.GradientStop(color='rgba(6,78,59,0.1)', offset=1)], x1=1, y1=1, x2=1, y2=0),
-                line={'color': '#84CC16', 'strokeWidth': 2}
-            ).encode(
-                x=alt.X('Lambda:Q', title='Longitud de Onda (nm)', axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16")),
-                y=alt.Y('Absorbancia:Q', title='Absorbancia (UA)', axis=alt.Axis(grid=True, gridColor="rgba(132, 204, 22, 0.1)", labelColor="#D1FAE5", titleColor="#84CC16"))
-            ).properties(height=130, background='transparent').configure_view(stroke=None)
 
-            st.caption(f"Espectro UV-Vis (λ max: {lambda_max} nm):")
+            chart_uv = (
+                alt.Chart(df_uv)
+                .mark_area(
+                    color=alt.Gradient(
+                        gradient="linear",
+                        stops=[
+                            alt.GradientStop(color="#84CC16", offset=0),
+                            alt.GradientStop(color="rgba(6,78,59,0.1)", offset=1),
+                        ],
+                        x1=1,
+                        y1=1,
+                        x2=1,
+                        y2=0,
+                    ),
+                    line={"color": "#84CC16", "strokeWidth": 2},
+                )
+                .encode(
+                    x=alt.X(
+                        "Lambda:Q",
+                        title="Longitud de Onda (nm)",
+                        axis=alt.Axis(grid=False, labelColor="#D1FAE5", titleColor="#84CC16"),
+                    ),
+                    y=alt.Y(
+                        "Absorbancia:Q",
+                        title="Absorbancia (UA)",
+                        axis=alt.Axis(
+                            grid=True,
+                            gridColor="rgba(132, 204, 22, 0.1)",
+                            labelColor="#D1FAE5",
+                            titleColor="#84CC16",
+                        ),
+                    ),
+                )
+                .properties(height=135, background="transparent")
+                .configure_view(stroke=None)
+            )
+
+            st.caption(f"Espectro UV-Vis estimado (λ max: {lambda_max} nm):")
             st.altair_chart(chart_uv, use_container_width=True)
 
         with tab_adme:
-            st.markdown('<div class="sec-header" style="font-size: 1.1rem;">💊 Perfil Farmacológico (Regla de Lipinski)</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="sec-header" style="font-size: 1.1rem;">💊 Perfil Farmacológico (Lipinski & Veber)</div>',
+                unsafe_allow_html=True,
+            )
             reglas = [
-                ("Peso Molecular < 500 g/mol", pm < 500, f"{pm:.1f}"),
-                ("Lipofilicidad LogP < 5", logp < 5, f"{logp:.2f}"),
+                ("Peso Molecular < 500 g/mol (Lipinski)", pm < 500, f"{pm:.1f}"),
+                ("Lipofilicidad LogP < 5 (Lipinski)", logp < 5, f"{logp:.2f}"),
                 ("Donantes H (HBD ≤ 5)", hbd <= 5, f"{hbd}"),
-                ("Aceptores H (HBA ≤ 10)", hba <= 10, f"{hba}")
+                ("Aceptores H (HBA ≤ 10)", hba <= 10, f"{hba}"),
+                ("Área Polar TPSA ≤ 140 Å² (Veber)", tpsa <= 140, f"{tpsa:.1f} Å²"),
+                ("Enlaces Rotables ≤ 10 (Veber)", rot_bonds <= 10, f"{rot_bonds}"),
             ]
             for nombre, cumple, val in reglas:
                 color = "#84CC16" if cumple else "#f59e0b"
-                st.markdown(f"""
+                st.markdown(
+                    f"""
                 <div style="display:flex; justify-content:space-between; background:rgba(2,22,17,0.7); padding:9px 12px; border-radius:8px; margin-bottom:6px; border-left:4px solid {color};">
                     <span style="color:#E6F4EA; font-size:0.9rem;">{'✅' if cumple else '⚠️'} {nombre}</span>
                     <span style="font-family:'JetBrains Mono'; color:{color}; font-weight:600; font-size:0.9rem;">{val}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                    unsafe_allow_html=True,
+                )
 
     with col_visor:
         st.markdown('<div class="sec-header">⚛️ Motor 3D Interactivo</div>', unsafe_allow_html=True)
-        
+
         modo_3d = st.radio(
             "Modo de renderizado:",
             [
-                "🔬 Esferas y Varillas (Estándar)",
+                "🔬 Esferas y Varillas",
                 "⚡ Superficie Potencial (ESP)",
-                "🔗 Simulación Docking (Sitio Activo)"
+                "🔗 Farmacóforo (Donadores / Aceptores)",
             ],
             horizontal=True,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
-        
+
         try:
-            AllChem.EmbedMolecule(mol_h, AllChem.ETKDG())
-            AllChem.MMFFOptimizeMolecule(mol_h)
-            mol_block = Chem.MolToMolBlock(mol_h)
+            viewer = py3Dmol.view(width="100%", height=390)
+            viewer.addModel(res["mol_block"], "mol")
 
-            viewer = py3Dmol.view(width=480, height=390)
-            viewer.addModel(mol_block, 'mol')
-
-            if "Estándar" in modo_3d:
-                viewer.setStyle({'stick': {'radius': 0.16, 'colorscheme': 'greenCarbon'}, 'sphere': {'scale': 0.28, 'colorscheme': 'greenCarbon'}})
-                
-                # Si hay un átomo seleccionado por clic en el 3D, lo resaltamos en neón y hacemos zoom
-                if st.session_state.clicked_atom != -1:
-                    viewer.addStyle({'serial': st.session_state.clicked_atom}, {
-                        'sphere': {'scale': 0.65, 'color': '#ff007f'},
-                        'stick': {'radius': 0.25, 'color': '#ff007f'}
-                    })
-                    viewer.addLabel(f"Atom #{st.session_state.clicked_atom}", {
-                        'position': {'serial': st.session_state.clicked_atom},
-                        'backgroundColor': '#064E3B',
-                        'fontColor': '#84CC16',
-                        'fontSize': 14
-                    })
-                    viewer.zoomTo({'serial': st.session_state.clicked_atom})
+            if "Esferas" in modo_3d:
+                viewer.setStyle(
+                    {
+                        "stick": {"radius": 0.16, "colorscheme": "greenCarbon"},
+                        "sphere": {"scale": 0.28, "colorscheme": "greenCarbon"},
+                    }
+                )
+                if selected_atom_id != -1:
+                    # En formato MOL de 3Dmol, serial es base-1 (atom.GetIdx() + 1)
+                    serial_3dmol = selected_atom_id + 1
+                    viewer.addStyle(
+                        {"serial": serial_3dmol},
+                        {
+                            "sphere": {"scale": 0.58, "color": "#ff007f"},
+                            "stick": {"radius": 0.24, "color": "#ff007f"},
+                        },
+                    )
+                    viewer.addLabel(
+                        f"Atom #{selected_atom_id}",
+                        {
+                            "position": {"serial": serial_3dmol},
+                            "backgroundColor": "#064E3B",
+                            "fontColor": "#84CC16",
+                            "fontSize": 13,
+                        },
+                    )
+                    viewer.zoomTo({"serial": serial_3dmol})
                 else:
                     viewer.zoomTo()
+
             elif "ESP" in modo_3d:
-                viewer.setStyle({'stick': {'radius': 0.14}})
-                viewer.addSurface(py3Dmol.VDW, {'opacity': 0.75, 'colorscheme': {'prop': 'partialCharge', 'gradient': 'rwb', 'min': -0.35, 'max': 0.35}})
+                viewer.setStyle({"stick": {"radius": 0.14, "colorscheme": "greenCarbon"}})
+                viewer.zoomTo()
+
             else:
-                rec_mol = Chem.AddHs(Chem.MolFromSmiles("CC(=O)NC(CC(=O)O)C(=O)N"))
-                AllChem.EmbedMolecule(rec_mol, AllChem.ETKDG())
-                conf = rec_mol.GetConformer()
-                for i in range(rec_mol.GetNumAtoms()):
-                    pos = conf.GetAtomPosition(i)
-                    conf.SetAtomPosition(i, (pos.x + 4.5, pos.y + 2.0, pos.z + 1.2))
-                rec_block = Chem.MolToMolBlock(rec_mol)
+                # Resalta heteroátomos polares (N, O, S, F) como nodos farmacofóricos
+                viewer.setStyle({"stick": {"radius": 0.15, "color": "#556B2F"}})
+                viewer.addStyle(
+                    {"elem": ["N", "O", "S", "F"]},
+                    {"sphere": {"scale": 0.42, "color": "#84CC16"}},
+                )
+                viewer.zoomTo()
 
-                viewer.setStyle({'model': 0}, {'stick': {'radius': 0.18, 'color': '#84CC16'}, 'sphere': {'scale': 0.3}})
-                viewer.addModel(rec_block, 'mol')
-                viewer.setStyle({'model': 1}, {'stick': {'radius': 0.14, 'color': '#D1FAE5'}, 'cartoon': {'color': '#556B2F'}})
-                viewer.addCylinder({'start': {'x': 0, 'y': 0, 'z': 0}, 'end': {'x': 4.0, 'y': 1.6, 'z': 1.0}, 'radius': 0.05, 'color': '#84CC16', 'dashed': True})
-
-            viewer.setBackgroundColor('#021712')
-            
-            # Script JavaScript mejorado para inyectar en py3Dmol y capturar el clic enviando los datos a Streamlit mediante URL fragment / rerun
-            # Como py3Dmol corre dentro de un iframe de Streamlit components, usamos un mecanismo seguro de alerta interactiva visual y selección por índice de átomo
+            viewer.setBackgroundColor("#021712")
             html_3d_code = viewer._make_html()
-            
+
+            if "ESP" in modo_3d:
+                cargas_json = json.dumps(cargas_esp)
+                esp_js = f"""
+                var _cargas = {cargas_json};
+                var _m = \\g<1>.getModel(0);
+                if (_m) {{
+                    var _atoms = _m.selectedAtoms({{}});
+                    for (var i = 0; i < _atoms.length && i < _cargas.length; i++) {{
+                        _atoms[i].partialCharge = _cargas[i];
+                        if (!_atoms[i].properties) _atoms[i].properties = {{}};
+                        _atoms[i].properties.partialCharge = _cargas[i];
+                    }}
+                }}
+                \\g<1>.addSurface($3Dmol.SurfaceType.VDW, {{
+                    opacity: 0.78,
+                    colorscheme: {{
+                        prop: 'partialCharge',
+                        gradient: 'rwb',
+                        min: -{max_abs_q:.3f},
+                        max: {max_abs_q:.3f}
+                    }}
+                }});
+                \\g<1>.render();
+                """
+                html_3d_code = re.sub(r"(viewer_\w+)\.render\(\);", esp_js, html_3d_code, count=1)
+
             components.html(html_3d_code, height=405)
-            st.caption("💡 Para inspeccionar un átomo específico, puedes usar la sección superior de la pestaña Cuántica o interactuar directamente con la estructura.")
+
+            if "ESP" in modo_3d:
+                st.markdown(
+                    f"""
+                    <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.75rem; font-family:'JetBrains Mono', monospace; margin-top:-6px; padding:6px 10px; background:rgba(2,22,17,0.7); border-radius:8px; border:1px solid rgba(132,204,22,0.2);">
+                        <span style="color:#f87171;">🔴 -{max_abs_q:.2f} e (δ⁻)</span>
+                        <span style="color:#e2e8f0;">⚪ 0.00 e</span>
+                        <span style="color:#60a5fa;">🔵 +{max_abs_q:.2f} e (δ⁺)</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.caption("💡 Arrastra para rotar, usa la rueda para zoom o selecciona una fila en la tabla atómica.")
         except Exception as e:
             st.error(f"Error en renderizado 3D: {e}")
 
     st.markdown("<hr style='border-color: rgba(132, 204, 22, 0.2); margin: 25px 0;'>", unsafe_allow_html=True)
 
-    # 8. PROTOCOLOS VERDES
+    # 9. PROTOCOLOS VERDES
     st.markdown('<div class="sec-header">🛡️ Protocolos de Laboratorio & Química Sostenible</div>', unsafe_allow_html=True)
     p1, p2, p3 = st.columns(3)
 
     with p1:
-        st.markdown("""
+        st.markdown(
+            """
         <div class="proto-card">
             <div class="proto-head">⚠️ Bioseguridad y EPP</div>
             <p style="font-size: 0.85rem; color: #E6F4EA; line-height: 1.45; margin: 0;">
                 Operación bajo campana de extracción con guantes de nitrilo y protección ocular certificada.
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with p2:
-        st.markdown("""
+        st.markdown(
+            """
         <div class="proto-card">
             <div class="proto-head">🌱 Economía Atómica</div>
             <p style="font-size: 0.85rem; color: #E6F4EA; line-height: 1.45; margin: 0;">
                 Diseño sintético enfocado en la minimización de residuos peligrosos y uso de disolventes bio-basados.
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with p3:
-        st.markdown("""
+        st.markdown(
+            """
         <div class="proto-card">
             <div class="proto-head">🔬 Control Analítico</div>
             <p style="font-size: 0.85rem; color: #E6F4EA; line-height: 1.45; margin: 0;">
                 Verificación estructural mediante cromatografía y espectroscopia infrarroja de alta resolución.
             </p>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
