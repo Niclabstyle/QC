@@ -1,0 +1,2 @@
+# QC
+Quimica Computacional Proyecto 
