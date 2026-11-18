@@ -192,7 +192,6 @@ st.markdown(
         border-right: 1px solid rgba(132, 204, 22, 0.18) !important;
     }}
 
-    /* Botones de navegación en Sidebar idénticos al mockup */
     [data-testid="stSidebar"] .stButton > button {{
         width: 100% !important;
         justify-content: flex-start !important;
@@ -628,10 +627,8 @@ def calcular_huckel_tom(smiles: str):
 
 
 def construir_diagrama_tom_correlacion(tom_res: dict):
-    """Genera el diagrama de correlación LCAO-MO (AO izquierda -> MO centro -> AO derecha) igual al mockup."""
     orbs = tom_res["orbitales"]
     homo_i = tom_res["homo_idx"]
-    # Ventana de hasta 8 orbitales frontera para mantener legibilidad visual con flechas y líneas
     start = max(0, homo_i - 3)
     end = min(len(orbs), start + 8)
     start = max(0, end - 8)
@@ -641,11 +638,8 @@ def construir_diagrama_tom_correlacion(tom_res: dict):
     e_ao_a = round(e_media + 0.35, 3)
     e_ao_b = round(e_media - 0.35, 3)
 
-    barras = []
-    correlaciones = []
-    etiquetas = []
+    barras, correlaciones, etiquetas = [], [], []
 
-    # Niveles AO izquierda y derecha
     barras.append({"id": "AO_A", "x": 0.15, "y": e_ao_a, "Tipo": "Orbital Atómico"})
     barras.append({"id": "AO_A", "x": 0.85, "y": e_ao_a, "Tipo": "Orbital Atómico"})
     barras.append({"id": "AO_B", "x": 3.15, "y": e_ao_b, "Tipo": "Orbital Atómico"})
@@ -655,14 +649,10 @@ def construir_diagrama_tom_correlacion(tom_res: dict):
     etiquetas.append({"x": 3.5, "y": e_ao_b, "texto": "φB (AO)", "Tipo": "Orbital Atómico"})
 
     for idx, o in enumerate(ventana):
-        e_val = o["Energía (eV)"]
-        tipo = o["Tipo"]
-        bar_id = f"MO_{idx}"
-        # Barra horizontal del orbital molecular en el centro
+        e_val, tipo, bar_id = o["Energía (eV)"], o["Tipo"], f"MO_{idx}"
         barras.append({"id": bar_id, "x": 1.65, "y": e_val, "Tipo": tipo})
         barras.append({"id": bar_id, "x": 2.35, "y": e_val, "Tipo": tipo})
 
-        # Líneas punteadas de correlación desde AO_A (0.85) -> MO (1.65) y MO (2.35) -> AO_B (3.15)
         correlaciones.append({"id": f"CL_{idx}", "x": 0.85, "y": e_ao_a, "Tipo": tipo})
         correlaciones.append({"id": f"CL_{idx}", "x": 1.65, "y": e_val, "Tipo": tipo})
         correlaciones.append({"id": f"CR_{idx}", "x": 2.35, "y": e_val, "Tipo": tipo})
@@ -673,17 +663,13 @@ def construir_diagrama_tom_correlacion(tom_res: dict):
         if tipo in ("HOMO", "LUMO"):
             etiquetas.append({"x": 2.55, "y": e_val, "texto": f"{tipo} ({o['Orbital']})", "Tipo": tipo})
 
-    df_barras = pd.DataFrame(barras)
-    df_corr = pd.DataFrame(correlaciones)
-    df_etq = pd.DataFrame(etiquetas)
-
     escala_color = alt.Scale(
         domain=["Ocupado (π)", "HOMO", "LUMO", "Virtual (π*)", "Orbital Atómico"],
         range=["#38BDF8", "#84CC16", "#F43F5E", "#A3E635", "#D1FAE5"],
     )
 
     capa_corr = (
-        alt.Chart(df_corr)
+        alt.Chart(pd.DataFrame(correlaciones))
         .mark_line(strokeDash=[4, 4], strokeWidth=1.2, opacity=0.65)
         .encode(
             x=alt.X("x:Q", title="", scale=alt.Scale(domain=[0, 4.1]), axis=None),
@@ -692,27 +678,15 @@ def construir_diagrama_tom_correlacion(tom_res: dict):
             color=alt.Color("Tipo:N", scale=escala_color, legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16", orient="bottom")),
         )
     )
-
     capa_barras = (
-        alt.Chart(df_barras)
+        alt.Chart(pd.DataFrame(barras))
         .mark_line(strokeWidth=3.2)
-        .encode(
-            x="x:Q",
-            y="y:Q",
-            detail="id:N",
-            color=alt.Color("Tipo:N", scale=escala_color),
-        )
+        .encode(x="x:Q", y="y:Q", detail="id:N", color=alt.Color("Tipo:N", scale=escala_color))
     )
-
     capa_txt = (
-        alt.Chart(df_etq)
+        alt.Chart(pd.DataFrame(etiquetas))
         .mark_text(dy=-9, fontSize=11, fontWeight="bold")
-        .encode(
-            x="x:Q",
-            y="y:Q",
-            text="texto:N",
-            color=alt.Color("Tipo:N", scale=escala_color),
-        )
+        .encode(x="x:Q", y="y:Q", text="texto:N", color=alt.Color("Tipo:N", scale=escala_color))
     )
 
     return (capa_corr + capa_barras + capa_txt).properties(height=255, background="transparent").configure_view(stroke=None)
@@ -1018,7 +992,7 @@ st.markdown(
     f"<div><div class='brand-title'>PharmaChem AI Studio</div>"
     f"<div class='hero-sub'>Química Cuántica (TOM / TCC / L), Mapa ESP Gasteiger, BOILED-Egg y Comparador Estructural</div>"
     f"</div></div>"
-    f"<div class='badge-pill'>Green Lab &amp; Quantum Core v8.5</div>"
+    f"<div class='badge-pill'>Green Lab &amp; Quantum Core v8.6</div>"
     f"</div>",
     unsafe_allow_html=True,
 )
@@ -1254,8 +1228,8 @@ else:
         col_analisis, col_visor = st.columns([1.25, 1], gap="large")
         selected_atom_id = -1
 
-        def render_cargas():
-            nonlocal selected_atom_id
+        def render_cargas() -> int:
+            sel_id = -1
             st.markdown(
                 "<div class='glass-panel'>"
                 "<div style='font-weight:600; color:#84CC16; font-size:0.95rem; margin-bottom:4px;'>Sincronización Tabla → Visor 3D y 2D</div>"
@@ -1271,9 +1245,9 @@ else:
                 row_idx = event.selection.rows[0]
                 if row_idx < len(df_atomos):
                     fila = df_atomos.iloc[row_idx]
-                    selected_atom_id = int(fila["ID Átomo"])
+                    sel_id = int(fila["ID Átomo"])
                     st.success(
-                        f"Átomo seleccionado: ID #{selected_atom_id} | Elemento: {fila['Elemento']} | "
+                        f"Átomo seleccionado: ID #{sel_id} | Elemento: {fila['Elemento']} | "
                         f"Hibridación: {fila['Hibridación']} | Carga: {fila['Carga (e)']} e"
                     )
             else:
@@ -1294,6 +1268,7 @@ else:
                 mime="chemical/x-mdl-molfile",
                 use_container_width=True,
             )
+            return sel_id
 
         def render_cuantica():
             st.markdown(
@@ -1497,7 +1472,7 @@ else:
         with col_analisis:
             vista = st.session_state.vista_nav
             if vista == "mol":
-                render_cargas()
+                selected_atom_id = render_cargas()
             elif vista == "qm":
                 render_cuantica()
             elif vista == "spec":
@@ -1509,7 +1484,7 @@ else:
                     ["Cargas y Tabla", "Cuántica (TOM / TCC / L)", "Espectros", "ADME y BOILED-Egg"]
                 )
                 with tab_quant:
-                    render_cargas()
+                    selected_atom_id = render_cargas()
                 with tab_qm:
                     render_cuantica()
                 with tab_spec:
