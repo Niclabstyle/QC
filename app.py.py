@@ -357,7 +357,6 @@ def calcular_huckel_tom(smiles: str):
         return None
 
     idx_map = {atom_idx: i for i, atom_idx in enumerate(pi_atoms)}
-    # Construimos M donde H = alpha*I + beta*M; como beta < 0, diagonalizamos -M
     mat = np.zeros((n, n), dtype=float)
     for i, h_val in enumerate(h_params):
         mat[i, i] = h_val
@@ -372,7 +371,6 @@ def calcular_huckel_tom(smiles: str):
             mat[i, j] = k_xy
             mat[j, i] = k_xy
 
-    # Autovalores en orden ascendente de energía (en unidades de |beta|, con alpha = -6.0 eV y |beta| = 2.4 eV)
     eigvals, eigvecs = np.linalg.eigh(-mat)
 
     alpha_ev = -6.0
@@ -415,14 +413,12 @@ def calcular_huckel_tom(smiles: str):
     gap_ev = round(abs(lumo_ev - homo_ev), 3)
     gap_beta = round(abs(orbitales[lumo_idx]["Energía (|β|)"] - orbitales[homo_idx]["Energía (|β|)"]), 3)
 
-    # Descriptores de DFT conceptual (Teorema de Koopmans)
     i_pot = -homo_ev
     e_aff = -lumo_ev
     mu_chem = round(-(i_pot + e_aff) / 2.0, 3)
     eta_hard = round(max(0.01, (i_pot - e_aff) / 2.0), 3)
     omega_elec = round((mu_chem**2) / (2.0 * eta_hard), 3)
 
-    # Densidad electrónica HOMO (c_i^2) por átomo del sistema pi
     homo_vec = eigvecs[:, homo_idx]
     lumo_vec = eigvecs[:, lumo_idx]
     densidad_atoms = []
@@ -469,7 +465,6 @@ def calcular_tcc(d_electrons: int, geometria: str, campo: str):
         ]
         unidad = "Δo"
     elif "Tetraédrica" in geometria:
-        # Tetraédrica siempre es campo débil (Delta_t ≈ 4/9 Delta_o)
         e_orb = min(2, d_electrons) + max(0, min(2, d_electrons - 5))
         t2_orb = max(0, min(3, d_electrons - 2)) + max(0, d_electrons - 7)
         eecc = round(-0.6 * e_orb + 0.4 * t2_orb, 2)
@@ -480,7 +475,6 @@ def calcular_tcc(d_electrons: int, geometria: str, campo: str):
         ]
         unidad = "Δt"
     else:
-        # Cuadrada plana (D4h): 4 niveles
         rem = d_electrons
         if "Bajo" in campo:
             n_xz_yz = min(4, rem); rem -= n_xz_yz
@@ -798,11 +792,11 @@ def construir_html_3d(
 st.markdown(
     """
 <div class="hero-box">
-    <div class="badge-pill">🌿 Green Lab & Quantum Core v7.0</div>
+    <div class="badge-pill">🌿 Green Lab & Quantum Core v7.5</div>
     <div class="brand-title">PharmaChem AI Studio</div>
     <div class="hero-desc">
         Entorno quimioinformático interactivo con PubChem, editor molecular, comparador A vs B,
-        química cuántica (Schrödinger / TOM / TCC), mapa BOILED-Egg y potencial electrostático (ESP).
+        química cuántica (Schrödinger / TOM / TCC / Momento Angular), BOILED-Egg y potencial electrostático (ESP).
     </div>
 </div>
 """,
@@ -1016,7 +1010,6 @@ else:
         alertas = res["alertas"]
         cargas_esp = res["cargas_esp"]
         max_abs_q = max([abs(q) for q in cargas_esp] + [0.25])
-        carga_max = max(cargas_esp) if cargas_esp else 0.0
 
         tom_res = calcular_huckel_tom(smiles_activo)
 
@@ -1068,7 +1061,7 @@ else:
             tab_quant, tab_qm, tab_spec, tab_adme = st.tabs(
                 [
                     "⚛️ Cargas & Tabla",
-                    "🌌 Cuántica (TOM / TCC)",
+                    "🌌 Cuántica (TOM / TCC / L)",
                     "📈 Espectros",
                     "💊 ADME & BOILED-Egg",
                 ]
@@ -1207,6 +1200,106 @@ else:
                     .configure_view(stroke=None)
                 )
                 st.altair_chart(chart_tcc, use_container_width=True)
+
+                st.markdown("<hr style='border-color: rgba(132, 204, 22, 0.2); margin: 14px 0;'>", unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="sec-header" style="font-size: 1.1rem;">🌀 Momento Angular Orbital (Cuantización Espacial)</div>',
+                    unsafe_allow_html=True,
+                )
+                st.latex(
+                    r"\hat{L}^2 Y_l^{m_l} = \hbar^2 l(l+1) Y_l^{m_l} \qquad "
+                    r"\hat{L}_z Y_l^{m_l} = \hbar m_l Y_l^{m_l} \qquad "
+                    r"\cos\theta = \frac{m_l}{\sqrt{l(l+1)}}"
+                )
+
+                subcapas = {0: "s", 1: "p", 2: "d", 3: "f", 4: "g"}
+                mao_c1, mao_c2, mao_c3 = st.columns(3)
+                n_q = mao_c1.slider("Número principal (n):", 1, 5, 3, key="mao_n")
+                l_q = mao_c2.selectbox(
+                    "Azimutal (l):",
+                    options=list(range(n_q)),
+                    index=min(2, n_q - 1),
+                    format_func=lambda x: f"{x} (subcapa {subcapas[x]})",
+                    key="mao_l",
+                )
+                m_opciones = list(range(-l_q, l_q + 1))
+                ml_q = mao_c3.selectbox(
+                    "Magnético (mₗ):",
+                    options=m_opciones,
+                    index=len(m_opciones) - 1,
+                    key="mao_ml",
+                )
+
+                l_mag = float(np.sqrt(l_q * (l_q + 1)))
+                nodos_radiales = n_q - l_q - 1
+                nodos_angulares = l_q
+
+                k1, k2, k3, k4 = st.columns(4)
+                k1.metric("Orbital", f"{n_q}{subcapas[l_q]}")
+                k2.metric("|L| (ħ)", f"{l_mag:.3f} ħ")
+                k3.metric("L_z (ħ)", f"{ml_q:+d} ħ")
+                if l_q > 0:
+                    angulo_deg = float(np.degrees(np.arccos(np.clip(ml_q / l_mag, -1.0, 1.0))))
+                    k4.metric("Ángulo θ", f"{angulo_deg:.1f}°")
+                else:
+                    k4.metric("Ángulo θ", "Esférico")
+
+                st.caption(
+                    f"**Nodos:** {nodos_radiales} radiales ($n-l-1$) • "
+                    f"{nodos_angulares} angulares ($l$) • "
+                    f"**Momento magnético orbital z:** $\\mu_{{L,z}} = {-ml_q:+d}\\,\\mu_B$"
+                )
+
+                if l_q == 0:
+                    st.info("Para $l = 0$ (orbital $s$), $|\\mathbf{L}| = 0$ y la nube electrónica tiene simetría esférica.")
+                else:
+                    filas_vec = []
+                    for m_val in m_opciones:
+                        l_perp = float(np.sqrt(max(0.0, l_mag**2 - m_val**2)))
+                        estado = "Seleccionado" if m_val == ml_q else "Permitido"
+                        filas_vec.append({"m": f"mₗ={m_val:+d}", "x": 0.0, "y": 0.0, "Estado": estado})
+                        filas_vec.append({"m": f"mₗ={m_val:+d}", "x": l_perp, "y": float(m_val), "Estado": estado})
+
+                    df_vec = pd.DataFrame(filas_vec)
+                    df_pts = df_vec[df_vec["x"] > 0].copy()
+                    if df_pts.empty:
+                        df_pts = pd.DataFrame(
+                            [
+                                {
+                                    "m": f"mₗ={m:+d}",
+                                    "x": float(np.sqrt(max(0.0, l_mag**2 - m**2))),
+                                    "y": float(m),
+                                    "Estado": "Seleccionado" if m == ml_q else "Permitido",
+                                }
+                                for m in m_opciones
+                            ]
+                        )
+
+                    limite = l_mag + 0.5
+                    lineas_l = (
+                        alt.Chart(df_vec)
+                        .mark_line(strokeWidth=2.5)
+                        .encode(
+                            x=alt.X("x:Q", title="Componente transversal L⊥ (ħ)", scale=alt.Scale(domain=[-0.3, limite]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+                            y=alt.Y("y:Q", title="Proyección Lz (ħ)", scale=alt.Scale(domain=[-limite, limite]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+                            detail="m:N",
+                            color=alt.Color("Estado:N", scale=alt.Scale(domain=["Seleccionado", "Permitido"], range=["#84CC16", "#38bdf8"]), legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16")),
+                        )
+                    )
+                    puntos_l = (
+                        alt.Chart(df_pts)
+                        .mark_point(size=100, filled=True)
+                        .encode(
+                            x="x:Q",
+                            y="y:Q",
+                            color=alt.Color("Estado:N", scale=alt.Scale(domain=["Seleccionado", "Permitido"], range=["#84CC16", "#38bdf8"])),
+                            tooltip=["m", "y", "x"],
+                        )
+                    )
+                    st.altair_chart(
+                        (lineas_l + puntos_l).properties(height=210, background="transparent").configure_view(stroke=None),
+                        use_container_width=True,
+                    )
 
             with tab_spec:
                 st.markdown(
