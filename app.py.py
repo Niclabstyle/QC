@@ -3,6 +3,7 @@ import streamlit.components.v1 as components
 from rdkit import Chem
 from rdkit.Chem import Descriptors, AllChem
 import py3Dmol
+import base64
 
 # 1. Configuración de página
 st.set_page_config(
@@ -12,25 +13,42 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CSS Avanzado envuelto correctamente en <style>
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Playfair+Display:ital,wght@0,600;1,400&family=Inter:wght@400;600&display=swap');
+# Función para cargar la fuente TTF local en Base64 para el CSS
+def load_font_base64(font_path):
+    try:
+        with open(font_path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode("utf-8")
+    except Exception:
+        return ""
 
-    .stApp {
+font_base64 = load_font_base64("NCLWickyBejari-Regular.ttf")
+
+# 2. CSS Avanzado con tu fuente Wicky Bejari integrada
+st.markdown(f"""
+<style>
+    @font-face {{
+        font-family: 'WickyBejari';
+        src: url(data:font/ttf;charset=utf-8;base64,{font_base64}) format('truetype');
+        font-weight: normal;
+        font-style: normal;
+    }}
+
+    .stApp {{
         background: radial-gradient(circle at 15% 15%, #16213e 0%, #0b0f19 45%, #07090f 100%);
         color: #f8fafc !important;
         font-family: 'Inter', sans-serif;
-    }
+    }}
     [data-testid="stSidebar"] {
         background-color: #0d121f;
         border-right: 1px solid rgba(0, 245, 212, 0.15);
     }
     
-    /* Aplicar estilo Old Print / Máquina de escribir a títulos clave */
+    /* Aplicar la fuente NCL Wicky Bejari a los títulos principales */
     .hero-title, h4, h5, .protocol-title {
-        font-family: 'Special Elite', monospace !important;
-        letter-spacing: 0.05em;
+        font-family: 'WickyBejari', serif !important;
+        letter-spacing: 0.08em;
+        font-size: 2.8rem;
     }
 
     p, span, label, div, .stMarkdown {
@@ -45,8 +63,6 @@ st.markdown("""
         backdrop-filter: blur(10px);
     }
     .hero-title {
-        font-size: 2.5rem;
-        font-weight: 800;
         background: linear-gradient(90deg, #00f5d4 0%, #7b2cbf 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -56,7 +72,6 @@ st.markdown("""
         color: #cbd5e1 !important;
         font-size: 1.05rem;
         line-height: 1.5;
-        font-family: 'Playfair Display', serif;
     }
     div[data-testid="stMetric"] {
         background: rgba(20, 28, 46, 0.75);
@@ -76,7 +91,7 @@ st.markdown("""
         color: #ffffff !important;
         font-size: 1.8rem !important;
         font-weight: 700 !important;
-        font-family: 'Special Elite', monospace !important;
+        font-family: 'WickyBejari', serif !important;
     }
     .protocol-card {
         background: rgba(15, 23, 42, 0.9);
@@ -94,7 +109,7 @@ st.markdown("""
     .protocol-title {
         font-weight: 700;
         color: #00f5d4 !important;
-        font-size: 0.9rem;
+        font-size: 1.1rem;
         margin-bottom: 6px;
         text-transform: uppercase;
         letter-spacing: 0.05em;
