@@ -12,7 +12,7 @@ import requests
 import streamlit as st
 import streamlit.components.v1 as components
 from rdkit import Chem, DataStructs
-from rdkit.Chem import AllChem, Descriptors, QED, rdMolDescriptors
+from rdkit.Chem import AllChem, Descriptors, FilterCatalog, QED, rdMolDescriptors
 from rdkit.Chem.Draw import rdMolDraw2D
 
 try:
@@ -271,9 +271,16 @@ st.markdown(
 
 
 # 4. FUNCIONES DE CÁLCULO Y API CACHEADAS
+@st.cache_resource(show_spinner=False)
+def obtener_catalogo_alertas():
+    params = FilterCatalog.FilterCatalogParams()
+    params.AddCatalog(FilterCatalog.FilterCatalogParams.FilterCatalogs.PAINS)
+    params.AddCatalog(FilterCatalog.FilterCatalogParams.FilterCatalogs.BRENK)
+    return FilterCatalog.FilterCatalog(params)
+
+
 @st.cache_data(ttl=3600, show_spinner=False)
 def buscar_pubchem(nombre: str):
-    """Consulta la API pública de PubChem por nombre común o IUPAC."""
     if not nombre.strip():
         return None
     url = (
@@ -310,13 +317,24 @@ def analizar_molecula(smiles: str):
     smiles_can = Chem.MolToSmiles(mol)
     formula = rdMolDescriptors.CalcMolFormula(mol)
     pm = Descriptors.MolWt(mol)
-    logp = Descriptors.MolLogP(mol)
+    logp = Descriptors.MolLogP(mol)  # Wildman-Crippen LogP (WLOGP)
     tpsa = Descriptors.TPSA(mol)
     hbd = Descriptors.NumHDonors(mol)
     hba = Descriptors.NumHAcceptors(mol)
     rot_bonds = Descriptors.NumRotatableBonds(mol)
     anillos_arom = rdMolDescriptors.CalcNumAromaticRings(mol)
     qed_score = QED.qed(mol)
+
+    # Solubilidad acuosa ESOL (Delaney 2004)
+    n_heavy = mol.GetNumHeavyAtoms()
+    n_arom_atoms = sum(1 for a in mol.GetAtoms() if a.GetIsAromatic())
+    ap = (n_arom_atoms / n_heavy) if n_heavy > 0 else 0.0
+    log_s = round(0.16 - 0.63 * logp - 0.0062 * pm + 0.066 * rot_bonds - 0.74 * ap, 2)
+    sol_mg_ml = (10**log_s) * pm
+
+    # Alertas estructurales PAINS / Brenk
+    catalogo = obtener_catalogo_alertas()
+    alertas = [m.GetDescription() for m in catalogo.GetMatches(mol)]
 
     mol_h = Chem.AddHs(mol)
     AllChem.ComputeGasteigerCharges(mol_h)
@@ -372,6 +390,9 @@ def analizar_molecula(smiles: str):
         "rot_bonds": rot_bonds,
         "anillos_arom": anillos_arom,
         "qed": qed_score,
+        "log_s": log_s,
+        "sol_mg_ml": sol_mg_ml,
+        "alertas": alertas,
         "cargas_esp": cargas_esp,
         "datos_atomos": datos_atomos,
         "mol_block": mol_block,
@@ -424,6 +445,63 @@ def calcular_tanimoto(smiles_a: str, smiles_b: str) -> float:
     fp_a = AllChem.GetMorganFingerprintAsBitVect(m_a, 2, nBits=2048)
     fp_b = AllChem.GetMorganFingerprintAsBitVect(m_b, 2, nBits=2048)
     return round(DataStructs.TanimotoSimilarity(fp_a, fp_b), 3)
+
+
+def top_similares_catalogo(smiles_objetivo: str, catalogo: dict, top_n: int = 2):
+    m_obj = Chem.MolFromSmiles(smiles_objetivo)
+    if m_obj is None:
+        return []
+    can_obj = Chem.MolToSmiles(m_obj)
+    fp_obj = AllChem.GetMorganFingerprintAsBitVect(m_obj, 2, nBits=2048)
+
+    resultados = []
+    for sm, (nombre, clase, formula) in catalogo.items():
+        m_cat = Chem.MolFromSmiles(sm)
+        if m_cat is None or Chem.MolToSmiles(m_cat) == can_obj:
+            continue
+        fp_cat = AllChem.GetMorganFingerprintAsBitVect(m_cat, 2, nBits=2048)
+        sim = DataStructs.TanimotoSimilarity(fp_obj, fp_cat)
+        resultados.append((nombre, formula, round(sim, 3)))
+
+    resultados.sort(key=lambda x: x[2], reverse=True)
+    return resultados[:top_n]
+
+
+def construir_boiled_egg(tpsa_val: float, wlogp_val: float, nombre_mol: str):
+    """Genera el gráfico BOILED-Egg (TPSA vs WLOGP) en Altair."""
+    t = np.linspace(0, 2 * np.pi, 120)
+    # Elipse HIA (absorción gastrointestinal) y BBB (barrera hematoencefálica)
+    df_hia = pd.DataFrame(
+        {"TPSA": 71.0 + 71.0 * np.cos(t), "WLOGP": 2.3 + 4.1 * np.sin(t), "order": np.arange(len(t)), "Zona": "HIA (Absorción GI)"}
+    )
+    df_bbb = pd.DataFrame(
+        {"TPSA": 38.0 + 41.0 * np.cos(t), "WLOGP": 3.1 + 2.6 * np.sin(t), "order": np.arange(len(t)), "Zona": "BBB (Cruce Cerebral)"}
+    )
+    df_elipses = pd.concat([df_hia, df_bbb], ignore_index=True)
+    df_punto = pd.DataFrame([{"TPSA": tpsa_val, "WLOGP": wlogp_val, "Compuesto": nombre_mol}])
+
+    capa_elipses = (
+        alt.Chart(df_elipses)
+        .mark_line(strokeWidth=2)
+        .encode(
+            x=alt.X("TPSA:Q", title="TPSA (Å²)", scale=alt.Scale(domain=[0, 180]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+            y=alt.Y("WLOGP:Q", title="WLOGP", scale=alt.Scale(domain=[-3, 7.5]), axis=alt.Axis(labelColor="#D1FAE5", titleColor="#84CC16", gridColor="rgba(132,204,22,0.1)")),
+            color=alt.Color("Zona:N", scale=alt.Scale(domain=["HIA (Absorción GI)", "BBB (Cruce Cerebral)"], range=["#D1FAE5", "#facc15"]), legend=alt.Legend(labelColor="#E6F4EA", titleColor="#84CC16")),
+            order="order:Q",
+        )
+    )
+
+    capa_punto = (
+        alt.Chart(df_punto)
+        .mark_point(size=180, filled=True, color="#84CC16", stroke="#ffffff", strokeWidth=1.5)
+        .encode(
+            x="TPSA:Q",
+            y="WLOGP:Q",
+            tooltip=["Compuesto", "TPSA", "WLOGP"],
+        )
+    )
+
+    return (capa_elipses + capa_punto).properties(height=210, background="transparent").configure_view(stroke=None)
 
 
 def construir_html_3d(
@@ -516,11 +594,11 @@ def construir_html_3d(
 st.markdown(
     """
 <div class="hero-box">
-    <div class="badge-pill">🌿 Green Lab & Quantum Core v6.0</div>
+    <div class="badge-pill">🌿 Green Lab & Quantum Core v6.5</div>
     <div class="brand-title">PharmaChem AI Studio</div>
     <div class="hero-desc">
-        Entorno quimioinformático interactivo con búsqueda en PubChem, editor molecular visual,
-        comparador A vs B, mapa electrostático (ESP) con cargas de Gasteiger y espectroscopia SMARTS.
+        Entorno quimioinformático interactivo con PubChem, editor molecular visual, comparador A vs B,
+        mapa BOILED-Egg, solubilidad ESOL, alertas PAINS/Brenk y potencial electrostático (ESP).
     </div>
 </div>
 """,
@@ -545,7 +623,7 @@ base_moleculas = {
     "CN1CCC[C@H]1C2=CN=CC=C2": ("Nicotina", "Alcaloide Natural", "C10H14N2"),
 }
 
-# 7. BARRA LATERAL (CATÁLOGO + PUBCHEM + COMPARADOR)
+# 7. BARRA LATERAL
 st.sidebar.markdown('<div class="sec-header">🔍 Explorador</div>', unsafe_allow_html=True)
 
 modo_comparador = st.sidebar.toggle("⚖️ Modo Comparador (A vs B)", value=False)
@@ -592,7 +670,6 @@ elif seleccion == "CUSTOM":
 else:
     smiles_activo = seleccion
 
-# Dibujador / SMILES personalizado en el cuerpo principal cuando CUSTOM está activo
 if seleccion == "CUSTOM":
     with st.expander("✏️ Editor Molecular Interactivo (Ketcher / SMILES)", expanded=True):
         if KETCHER_AVAILABLE:
@@ -607,7 +684,6 @@ if seleccion == "CUSTOM":
             st.session_state["custom_smiles"] = smiles_input
             st.info("💡 Instala `streamlit-ketcher` para dibujar moléculas visualmente con el ratón.")
 
-# Selector para Molécula B si el comparador está encendido
 smiles_b = None
 if modo_comparador:
     st.sidebar.markdown("---")
@@ -660,12 +736,7 @@ if modo_comparador and smiles_b:
         with ca:
             st.markdown(f'<div class="sec-header">🧪 A: {info_a[0]}</div>', unsafe_allow_html=True)
             html_a = construir_html_3d(
-                res_a["mol_block"],
-                "Esferas",
-                res_a["cargas_esp"],
-                0.35,
-                spin=spin_comp,
-                height=310,
+                res_a["mol_block"], "Esferas", res_a["cargas_esp"], 0.35, spin=spin_comp, height=310
             )
             components.html(html_a, height=325)
             svg_a = generar_svg_2d(smiles_activo)
@@ -678,12 +749,7 @@ if modo_comparador and smiles_b:
         with cb:
             st.markdown(f'<div class="sec-header">🧪 B: {info_b[0]}</div>', unsafe_allow_html=True)
             html_b = construir_html_3d(
-                res_b["mol_block"],
-                "Esferas",
-                res_b["cargas_esp"],
-                0.35,
-                spin=spin_comp,
-                height=310,
+                res_b["mol_block"], "Esferas", res_b["cargas_esp"], 0.35, spin=spin_comp, height=310
             )
             components.html(html_b, height=325)
             svg_b = generar_svg_2d(smiles_b)
@@ -741,6 +807,9 @@ else:
         rot_bonds = res["rot_bonds"]
         anillos_arom = res["anillos_arom"]
         qed_score = res["qed"]
+        log_s = res["log_s"]
+        sol_mg_ml = res["sol_mg_ml"]
+        alertas = res["alertas"]
         cargas_esp = res["cargas_esp"]
         max_abs_q = max([abs(q) for q in cargas_esp] + [0.25])
         carga_max = max(cargas_esp) if cargas_esp else 0.0
@@ -771,14 +840,14 @@ else:
                 <div class="kpi-sub">g/mol (&lt; 500)</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">LogP (Lipofilicidad)</div>
+                <div class="kpi-label">LogP (WLOGP)</div>
                 <div class="kpi-val">{logp:.2f}</div>
                 <div class="kpi-sub">Octanol / Agua</div>
             </div>
             <div class="kpi-card">
-                <div class="kpi-label">Área TPSA</div>
-                <div class="kpi-val">{tpsa:.1f} Å²</div>
-                <div class="kpi-sub">Superficie Polar</div>
+                <div class="kpi-label">Solubilidad ESOL</div>
+                <div class="kpi-val">{log_s:.2f}</div>
+                <div class="kpi-sub">{sol_mg_ml:.2f} mg/mL</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-label">Índice QED</div>
@@ -798,7 +867,7 @@ else:
                 [
                     "⚛️ Cargas & Tabla Atómica",
                     "📈 Espectros Cohesionados",
-                    "💊 Parámetros ADME",
+                    "💊 ADME, BOILED-Egg & Alertas",
                 ]
             )
 
@@ -960,28 +1029,44 @@ else:
 
             with tab_adme:
                 st.markdown(
-                    '<div class="sec-header" style="font-size: 1.1rem;">💊 Perfil Farmacológico (Lipinski & Veber)</div>',
+                    '<div class="sec-header" style="font-size: 1.1rem;">🥚 Mapa BOILED-Egg (HIA vs BBB)</div>',
                     unsafe_allow_html=True,
+                )
+                st.altair_chart(construir_boiled_egg(tpsa, logp, nombre_mol), use_container_width=True)
+
+                sol_cat = (
+                    "Muy soluble"
+                    if log_s > -2
+                    else ("Soluble" if log_s >= -4 else ("Moderada" if log_s >= -6 else "Poco soluble"))
                 )
                 reglas = [
                     ("Peso Molecular < 500 g/mol (Lipinski)", pm < 500, f"{pm:.1f}"),
                     ("Lipofilicidad LogP < 5 (Lipinski)", logp < 5, f"{logp:.2f}"),
-                    ("Donantes H (HBD ≤ 5)", hbd <= 5, f"{hbd}"),
-                    ("Aceptores H (HBA ≤ 10)", hba <= 10, f"{hba}"),
-                    ("Área Polar TPSA ≤ 140 Å² (Veber)", tpsa <= 140, f"{tpsa:.1f} Å²"),
-                    ("Enlaces Rotables ≤ 10 (Veber)", rot_bonds <= 10, f"{rot_bonds}"),
+                    ("Donantes H (HBD ≤ 5) / Aceptores H (HBA ≤ 10)", hbd <= 5 and hba <= 10, f"{hbd} / {hba}"),
+                    ("TPSA ≤ 140 Å² & Rotables ≤ 10 (Veber)", tpsa <= 140 and rot_bonds <= 10, f"{tpsa:.1f} Å² | {rot_bonds}"),
+                    (f"Solubilidad ESOL ({sol_cat})", log_s >= -4, f"LogS {log_s:.2f}"),
                 ]
                 for nombre, cumple, val in reglas:
                     color = "#84CC16" if cumple else "#f59e0b"
                     st.markdown(
                         f"""
-                    <div style="display:flex; justify-content:space-between; background:rgba(2,22,17,0.7); padding:9px 12px; border-radius:8px; margin-bottom:6px; border-left:4px solid {color};">
-                        <span style="color:#E6F4EA; font-size:0.9rem;">{'✅' if cumple else '⚠️'} {nombre}</span>
-                        <span style="font-family:'JetBrains Mono'; color:{color}; font-weight:600; font-size:0.9rem;">{val}</span>
+                    <div style="display:flex; justify-content:space-between; background:rgba(2,22,17,0.7); padding:8px 12px; border-radius:8px; margin-bottom:6px; border-left:4px solid {color};">
+                        <span style="color:#E6F4EA; font-size:0.86rem;">{'✅' if cumple else '⚠️'} {nombre}</span>
+                        <span style="font-family:'JetBrains Mono'; color:{color}; font-weight:600; font-size:0.86rem;">{val}</span>
                     </div>
                     """,
                         unsafe_allow_html=True,
                     )
+
+                if alertas:
+                    st.warning(f"🚨 **Alertas PAINS / Brenk ({len(alertas)}):** " + ", ".join(alertas))
+                else:
+                    st.success("🛡️ **Filtros PAINS / Brenk:** Sin alertas estructurales detectadas.")
+
+                similares = top_similares_catalogo(smiles_activo, base_moleculas, top_n=2)
+                if similares:
+                    texto_sim = " • ".join([f"**{n}** ({f}) — `{s}`" for n, f, s in similares])
+                    st.caption(f"🧬 Más similares en catálogo (Tanimoto): {texto_sim}")
 
         with col_visor:
             st.markdown('<div class="sec-header">⚛️ Motor 3D & 2D Interactivo</div>', unsafe_allow_html=True)
@@ -990,11 +1075,7 @@ else:
             with v_col1:
                 modo_3d = st.radio(
                     "Modo de renderizado:",
-                    [
-                        "🔬 Esferas",
-                        "⚡ ESP",
-                        "🔗 Farmacóforo",
-                    ],
+                    ["🔬 Esferas", "⚡ ESP", "🔗 Farmacóforo"],
                     horizontal=True,
                     label_visibility="collapsed",
                 )
