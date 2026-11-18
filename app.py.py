@@ -37,7 +37,7 @@ font_face_rule = f"""
 }}
 """ if font_base64 else ""
 
-# 3. SISTEMA DE DISEÑO CSS ULTRA-SMOOTH & GLASSMORPHISM (CON CORRECCIÓN DE CONTRASTE)
+# 3. SISTEMA DE DISEÑO CSS ULTRA-SMOOTH & GLASSMORPHISM
 st.markdown(f"""
 <style>
     {font_face_rule}
@@ -53,7 +53,6 @@ st.markdown(f"""
         --mint-pale: #E6F4EA;
     }}
 
-    /* Fondo Global Fluido */
     .stApp {{
         background: radial-gradient(circle at 15% 10%, #064E3B 0%, #021a14 45%, #010c09 100%) !important;
         color: var(--mint-pale) !important;
@@ -64,13 +63,11 @@ st.markdown(f"""
         background: transparent !important;
     }}
 
-    /* Barra Lateral Estilizada */
     [data-testid="stSidebar"] {{
         background: linear-gradient(180deg, #021712 0%, #010a08 100%) !important;
         border-right: 1px solid rgba(132, 204, 22, 0.2) !important;
     }}
 
-    /* Tipografías */
     .brand-title {{
         font-family: 'WickyBejari', 'Special Elite', serif !important;
         font-size: 3rem !important;
@@ -93,7 +90,6 @@ st.markdown(f"""
         gap: 8px;
     }}
 
-    /* Hero Banner Smooth */
     .hero-box {{
         background: linear-gradient(135deg, rgba(6, 78, 59, 0.5) 0%, rgba(85, 107, 47, 0.2) 100%);
         border: 1px solid rgba(132, 204, 22, 0.3);
@@ -124,7 +120,6 @@ st.markdown(f"""
         letter-spacing: 0.08em;
     }}
 
-    /* KPIs Grid */
     .kpi-grid {{
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -171,7 +166,6 @@ st.markdown(f"""
         margin-top: 3px;
     }}
 
-    /* Barra de Espécimen */
     .specimen-bar {{
         background: rgba(2, 22, 17, 0.8);
         border: 1px solid rgba(132, 204, 22, 0.25);
@@ -196,7 +190,6 @@ st.markdown(f"""
         font-size: 0.85rem;
     }}
 
-    /* Paneles Glass */
     .glass-panel {{
         background: rgba(6, 78, 59, 0.3);
         border: 1px solid rgba(209, 250, 229, 0.12);
@@ -206,7 +199,6 @@ st.markdown(f"""
         margin-bottom: 15px;
     }}
 
-    /* Tarjetas de Protocolo */
     .proto-card {{
         background: linear-gradient(145deg, rgba(6, 78, 59, 0.55), rgba(85, 107, 47, 0.2));
         border: 1px solid rgba(132, 204, 22, 0.2);
@@ -222,7 +214,6 @@ st.markdown(f"""
         margin-bottom: 6px;
     }}
 
-    /* Pestañas Smooth */
     .stTabs [data-baseweb="tab-list"] {{
         gap: 6px;
         background: rgba(2, 18, 13, 0.5);
@@ -250,9 +241,6 @@ st.markdown(f"""
         border-color: rgba(132, 204, 22, 0.3) !important;
     }}
 
-    /* ==========================================
-       CORRECCIÓN GLOBAL DE CONTRASTE (TEXTO CLARO)
-       ========================================== */
     p, span, label, div, .stMarkdown, .stText {{
         color: #E6F4EA !important;
     }}
@@ -267,7 +255,7 @@ st.markdown(f"""
 # 4. HERO SECTION
 st.markdown("""
 <div class="hero-box">
-    <div class="badge-pill">🌿 Green Lab & Quantum Core v5.0</div>
+    <div class="badge-pill">🌿 Green Lab & Quantum Core v5.1</div>
     <div class="brand-title">PharmaChem AI Studio</div>
     <div class="hero-desc">
         Entorno quimiinformático de alto rendimiento optimizado con simulación electrostática, modelado 3D 
@@ -290,7 +278,7 @@ base_moleculas = {
     "CN1CCC[C@H]1C2=CN=CC=C2": ("Nicotina", "Alcaloide Natural", "C10H14N2")
 }
 
-# 6. BARRA LATERAL
+# 6. BARRA LATERAL (LIMPIA, SOLO EXPLORADOR)
 st.sidebar.markdown('<div class="sec-header">🔍 Explorador</div>', unsafe_allow_html=True)
 query_busqueda = st.sidebar.text_input("Filtrar compuesto o fórmula:", placeholder="Ej: Cafeína, Imatinib...").strip().lower()
 
@@ -305,17 +293,6 @@ seleccion = st.sidebar.selectbox(
 )
 
 smiles_activo = st.sidebar.text_input("Estructura SMILES:", "CCO") if seleccion == "CUSTOM" else seleccion
-
-st.sidebar.markdown("---")
-st.sidebar.markdown('<div class="sec-header">⚛️ Motor 3D</div>', unsafe_allow_html=True)
-modo_3d = st.sidebar.radio(
-    "Modo de renderizado:",
-    [
-        "🔬 Esferas y Varillas (Estándar)",
-        "⚡ Superficie Potencial (ESP)",
-        "🔗 Simulación Docking (Sitio Activo)"
-    ]
-)
 
 # 7. PROCESAMIENTO RDKIT
 mol = Chem.MolFromSmiles(smiles_activo)
@@ -467,14 +444,26 @@ else:
                 """, unsafe_allow_html=True)
 
     with col_visor:
-        st.markdown('<div class="sec-header">🧊 Estación 3D Interactiva</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sec-header">⚛️ Motor 3D</div>', unsafe_allow_html=True)
+        
+        # Selector de Modo de Renderizado ubicado debajo del título del Motor 3D
+        modo_3d = st.radio(
+            "Modo de renderizado:",
+            [
+                "🔬 Esferas y Varillas (Estándar)",
+                "⚡ Superficie Potencial (ESP)",
+                "🔗 Simulación Docking (Sitio Activo)"
+            ],
+            horizontal=True,
+            label_visibility="collapsed"
+        )
         
         try:
             AllChem.EmbedMolecule(mol_h, AllChem.ETKDG())
             AllChem.MMFFOptimizeMolecule(mol_h)
             mol_block = Chem.MolToMolBlock(mol_h)
 
-            viewer = py3Dmol.view(width=480, height=430)
+            viewer = py3Dmol.view(width=480, height=390)
             viewer.addModel(mol_block, 'mol')
 
             if "Estándar" in modo_3d:
@@ -498,7 +487,7 @@ else:
 
             viewer.setBackgroundColor('#021712')
             viewer.zoomTo()
-            components.html(viewer._make_html(), height=440)
+            components.html(viewer._make_html(), height=405)
             st.caption("💡 Visualización optimizada con iluminación de estudio y mapeo cuántico.")
         except Exception as e:
             st.error(f"Error en renderizado 3D: {e}")
@@ -538,4 +527,3 @@ else:
             </p>
         </div>
         """, unsafe_allow_html=True)
-    
