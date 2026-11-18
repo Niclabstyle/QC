@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. CSS Personalizado (Dark-Tech / Glassmorphism)
+# 2. CSS Avanzado (Estética Dark-Tech / Glassmorphism de Alta Gama)
 st.markdown("""
 <style>
     .stApp {
@@ -23,8 +23,16 @@ st.markdown("""
         background-color: #0d121f;
         border-right: 1px solid rgba(0, 245, 212, 0.15);
     }
+    .hero-container {
+        background: linear-gradient(135deg, rgba(0, 245, 212, 0.05) 0%, rgba(123, 44, 191, 0.08) 100%);
+        border: 1px solid rgba(0, 245, 212, 0.2);
+        border-radius: 16px;
+        padding: 24px 30px;
+        margin-bottom: 25px;
+        backdrop-filter: blur(10px);
+    }
     .hero-title {
-        font-size: 2.6rem;
+        font-size: 2.5rem;
         font-weight: 800;
         background: linear-gradient(90deg, #00f5d4 0%, #7b2cbf 100%);
         -webkit-background-clip: text;
@@ -34,24 +42,25 @@ st.markdown("""
     .hero-subtitle {
         color: #94a3b8;
         font-size: 1.05rem;
-        margin-bottom: 1.5rem;
+        line-height: 1.5;
     }
     div[data-testid="stMetric"] {
         background: rgba(20, 28, 46, 0.65);
         backdrop-filter: blur(12px);
         border: 1px solid rgba(0, 245, 212, 0.25);
         border-radius: 14px;
-        padding: 18px 22px;
+        padding: 16px 20px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
     }
     div[data-testid="stMetricLabel"] {
         color: #94a3b8 !important;
-        font-size: 0.85rem !important;
+        font-size: 0.8rem !important;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
     div[data-testid="stMetricValue"] {
         color: #f8fafc !important;
-        font-size: 1.9rem !important;
+        font-size: 1.8rem !important;
         font-weight: 700 !important;
     }
     .protocol-card {
@@ -60,7 +69,9 @@ st.markdown("""
         border-radius: 8px;
         padding: 16px;
         margin-bottom: 12px;
-        border: 1px solid rgba(255,255,255,0.05);
+        border-top: 1px solid rgba(255,255,255,0.05);
+        border-right: 1px solid rgba(255,255,255,0.05);
+        border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     .protocol-warning {
         border-left-color: #f59e0b;
@@ -68,9 +79,10 @@ st.markdown("""
     .protocol-title {
         font-weight: 700;
         color: #00f5d4;
-        font-size: 0.95rem;
-        margin-bottom: 4px;
+        font-size: 0.9rem;
+        margin-bottom: 6px;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
     .protocol-warning .protocol-title {
         color: #fbbf24;
@@ -78,11 +90,19 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. Encabezado Principal
-st.markdown('<div class="hero-title">🧬 PharmaChem AI</div>', unsafe_allow_html=True)
-st.markdown('<div class="hero-subtitle">Plataforma de Inteligencia Molecular, Descriptores Fisicoquímicos y Visualización Tridimensional</div>', unsafe_allow_html=True)
+# 3. Abrebocas / Hero Section (Landing Page Header)
+st.markdown("""
+<div class="hero-container">
+    <div class="hero-title">🧬 PharmaChem AI Platform</div>
+    <div class="hero-subtitle">
+        Plataforma quimiinformática de alto rendimiento diseñada para la automatización del análisis molecular, 
+        evaluación de propiedades farmacocinéticas y generación de protocolos analíticos en tiempo real. 
+        Ideal para investigación computacional y desarrollo farmacéutico avanzado.
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# Catálogo de moléculas
+# Catálogo inteligente de moléculas
 nombres_conocidos = {
     "CC(=O)OC1=CC=CC=C1C(=O)O": "Aspirina (Ácido acetilsalicílico)",
     "CN1C=NC2=C1C(=O)N(C(=O)N2C)C": "Cafeína",
@@ -91,7 +111,7 @@ nombres_conocidos = {
     "CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34C": "Testosterona"
 }
 
-# 4. Panel Lateral
+# 4. Panel Lateral de Control
 st.sidebar.markdown("### ⚙️ PARÁMETROS DE ENTRADA")
 opcion = st.sidebar.selectbox(
     "Seleccionar espécimen molecular:",
@@ -105,17 +125,17 @@ else:
     smiles_input = opcion
 
 st.sidebar.markdown("---")
-st.sidebar.caption("Motor de cálculo: **RDKit & py3Dmol Engine**")
+st.sidebar.info("💡 **Consejo:** Puedes rotar, hacer zoom e inspeccionar la geometría tridimensional en tiempo real en el panel derecho de la aplicación.")
 
-# 5. Procesamiento
+# 5. Procesamiento Principal
 mol = Chem.MolFromSmiles(smiles_input)
 
 if mol is None:
-    st.error("❌ Error de sintaxis molecular: El código SMILES ingresado no es válido.")
+    st.error("❌ Error de sintaxis molecular: El código SMILES ingresado no es válido. Por favor, verifica la estructura.")
 else:
-    nombre_molecula = nombres_conocidos.get(smiles_input, "Compuesto Personalizado")
+    nombre_molecula = nombres_conocidos.get(smiles_input, "Compuesto Personalizado / Investigacional")
     
-    # Cálculos fisicoquímicos
+    # Cálculos fisicoquímicos mediante RDKit
     pm = Descriptors.MolWt(mol)
     logp = Descriptors.MolLogP(mol)
     tpsa = Descriptors.TPSA(mol)
@@ -125,47 +145,53 @@ else:
     st.markdown(f"#### 🔬 Espécimen Activo: **{nombre_molecula}**")
     st.code(f"SMILES // {smiles_input}", language="text")
 
+    # Organización en dos columnas de alto impacto visual
     col_izq, col_der = st.columns([1.3, 1], gap="large")
 
     with col_izq:
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Peso Molecular", f"{pm:.2f} g/mol")
-        m2.metric("LogP (Lipofilicidad)", f"{logp:.2f}")
-        m3.metric("TPSA (Área Polar)", f"{tpsa:.2f} Å²")
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("##### 🎯 Predicción de Aplicación & Biodisponibilidad")
-        lipinski_ok = (pm < 500 and logp < 5 and hbd <= 5 and hba <= 10)
+        # Pestañas profesionales para organizar la analítica
+        tab_metricas, tab_aplicacion = st.tabs(["📊 Métricas Fisicoquímicas", "🎯 Viabilidad & Lipinski"])
         
-        if lipinski_ok and tpsa < 140:
-            st.success("✅ **Candidato Farmacológico Óptimo:** Cumple estrictamente con la Regla de los 5 de Lipinski y umbral TPSA para absorción oral.")
-        elif logp > 2 and pm < 400:
-            st.info("🌾 **Perfil Agroquímico / Penetración Lipídica:** Alta afinidad por membranas no polares.")
-        else:
-            st.warning("🧪 **Materiales Avanzados / Síntesis Especializada:** Estructura compleja fuera del espacio químico oral estándar.")
+        with tab_metricas:
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Peso Molecular", f"{pm:.2f} g/mol")
+            m2.metric("LogP (Lipofilicidad)", f"{logp:.2f}")
+            m3.metric("TPSA (Área Polar)", f"{tpsa:.2f} Å²")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.caption(f"Donantes de enlaces de hidrógeno (HBD): **{hbd}** | Aceptores (HBA): **{hba}**")
+
+        with tab_aplicacion:
+            lipinski_ok = (pm < 500 and logp < 5 and hbd <= 5 and hba <= 10)
+            if lipinski_ok and tpsa < 140:
+                st.success("✅ **Candidato Farmacológico Óptimo:** Cumple con la Regla de Lipinski y umbrales óptimos de absorción oral.")
+            elif logp > 2 and pm < 400:
+                st.info("🌾 **Perfil Agroquímico:** Excelente afinidad lipídica y penetración de membranas no polares.")
+            else:
+                st.warning("🧪 **Materiales / Síntesis Avanzada:** Estructura fuera del espacio farmacológico oral estándar.")
 
     with col_der:
-        st.markdown("##### ⚛️ Visor Estructural 3D Interactivo")
+        st.markdown("##### ⚛️ Visor Tridimensional Interactivo")
         
-        # Preparar geometría 3D con RDKit
+        # Generar geometría 3D optimizada
         mol_3d = Chem.AddHs(mol)
         AllChem.EmbedMolecule(mol_3d, AllChem.ETKDG())
         AllChem.MMFFOptimizeMolecule(mol_3d)
         mol_block = Chem.MolToMolBlock(mol_3d)
         
-        # Crear visor py3Dmol e incrustarlo directamente como HTML
-        viewer = py3Dmol.view(width=420, height=320)
+        # Renderizado interactivo con py3Dmol
+        viewer = py3Dmol.view(width=420, height=310)
         viewer.addModel(mol_block, 'mol')
         viewer.setStyle({'stick': {'radius': 0.16}, 'sphere': {'scale': 0.3}})
         viewer.setBackgroundColor('#0b0f19')
         viewer.zoomTo()
         
         html_3d = viewer._make_html()
-        components.html(html_3d, height=330, width=430)
+        components.html(html_3d, height=320, width=430)
 
     st.markdown("---")
 
-    # 6. Protocolos de Laboratorio
+    # 6. Protocolos de Laboratorio en formato de tarjetas tácticas
     st.markdown("#### 🛡️ Protocolo Táctico de Laboratorio & Control Analítico")
     p1, p2, p3 = st.columns(3)
 
@@ -173,7 +199,7 @@ else:
         st.markdown("""
         <div class="protocol-card protocol-warning">
             <div class="protocol-title">⚠️ Bioseguridad & EPP</div>
-            Manipulación obligatoria bajo campana de extracción de gases con guantes de nitrilo y protección ocular.
+            Manipulación obligatoria bajo campana extractora con equipo de protección integral (guantes de nitrilo y gafas).
         </div>
         """, unsafe_allow_html=True)
 
@@ -181,7 +207,7 @@ else:
         st.markdown("""
         <div class="protocol-card">
             <div class="protocol-title">📊 Control Analítico</div>
-            Monitoreo por Cromatografía en Capa Fina (CCF / Sílica) y verificación de grupos funcionales por FT-IR.
+            Monitoreo por Cromatografía en Capa Fina (CCF) y confirmación estructural mediante espectroscopia FT-IR.
         </div>
         """, unsafe_allow_html=True)
 
