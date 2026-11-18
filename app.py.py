@@ -249,6 +249,28 @@ st.markdown(f"""
         color: #E6F4EA !important;
         border-color: rgba(132, 204, 22, 0.3) !important;
     }}
+    /* ==========================================
+       CORRECCIÓN GLOBAL DE CONTRASTE (TEXTO CLARO)
+       ========================================== */
+    p, span, label, div, .stMarkdown, .stText, .streamlit-expanderHeader, .css-10trblm {
+        color: #E6F4EA !important;
+    }
+
+    /* Forzar texto claro en tablas y DataFrames */
+    .stDataFrame, .dataframe, th, td {
+        color: #E6F4EA !important;
+        background-color: transparent !important;
+    }
+
+    /* Textos dentro de selectbox e inputs */
+    .stSelectbox div[data-baseweb="select"] span, input {
+        color: #FFFFFF !important;
+    }
+
+    /* Títulos de pestañas */
+    .stTabs [data-baseweb="tab"] {
+        color: #D1FAE5 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
