@@ -1,8 +1,8 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from rdkit import Chem
 from rdkit.Chem import Descriptors, AllChem
 import py3Dmol
-from stmol import showmol
 
 # 1. Configuración de página
 st.set_page_config(
@@ -105,7 +105,7 @@ else:
     smiles_input = opcion
 
 st.sidebar.markdown("---")
-st.sidebar.caption("Motor de cálculo: **RDKit & py3Dmol**")
+st.sidebar.caption("Motor de cálculo: **RDKit & py3Dmol Engine**")
 
 # 5. Procesamiento
 mol = Chem.MolFromSmiles(smiles_input)
@@ -147,19 +147,21 @@ else:
     with col_der:
         st.markdown("##### ⚛️ Visor Estructural 3D Interactivo")
         
-        # Preparar geometría 3D con RDKit (añadir hidrógenos y calcular coordenadas espaciales)
+        # Preparar geometría 3D con RDKit
         mol_3d = Chem.AddHs(mol)
         AllChem.EmbedMolecule(mol_3d, AllChem.ETKDG())
         AllChem.MMFFOptimizeMolecule(mol_3d)
         mol_block = Chem.MolToMolBlock(mol_3d)
         
-        # Renderizar visor 3D con py3Dmol dentro de Streamlit
-        viewer = py3Dmol.view(width=400, height=300)
+        # Crear visor py3Dmol e incrustarlo directamente como HTML
+        viewer = py3Dmol.view(width=420, height=320)
         viewer.addModel(mol_block, 'mol')
-        viewer.setStyle({'stick': {'radius': 0.15}, 'sphere': {'scale': 0.3}})
+        viewer.setStyle({'stick': {'radius': 0.16}, 'sphere': {'scale': 0.3}})
         viewer.setBackgroundColor('#0b0f19')
         viewer.zoomTo()
-        showmol(viewer, height=300, width=400)
+        
+        html_3d = viewer._make_html()
+        components.html(html_3d, height=330, width=430)
 
     st.markdown("---")
 
