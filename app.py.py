@@ -365,12 +365,15 @@ def generar_svg_2d(smiles: str, highlight_idx: int = -1) -> str:
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
 
+    # Limpiar cabecera XML y saltos de línea para que st.markdown no rompa el HTML
+    svg = re.sub(r"<\?xml[^>]*\?>\s*", "", svg)
     svg = re.sub(
         r"width='[^']+'\s+height='[^']+'",
         "style='width:100%; height:auto; max-height:220px;'",
         svg,
         count=1,
     )
+    svg = " ".join(line.strip() for line in svg.splitlines() if line.strip())
     return svg
 
 
@@ -801,17 +804,15 @@ else:
 
             svg_2d = generar_svg_2d(smiles_activo, selected_atom_id)
             if svg_2d:
-                st.markdown(
-                    f"""
-                    <div style="margin-top:10px; background:rgba(2,22,17,0.75); border:1px solid rgba(132,204,22,0.25); border-radius:12px; padding:12px;">
-                        <div style="font-size:0.75rem; color:#84CC16; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:6px; font-family:'JetBrains Mono', monospace;">
-                            Estructura 2D (Esquelética)
-                        </div>
-                        {svg_2d}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
+                html_2d = (
+                    "<div style='margin-top:10px; background:rgba(2,22,17,0.75); "
+                    "border:1px solid rgba(132,204,22,0.25); border-radius:12px; padding:12px;'>"
+                    "<div style='font-size:0.75rem; color:#84CC16; text-transform:uppercase; "
+                    "letter-spacing:0.08em; margin-bottom:6px; font-family:\"JetBrains Mono\", monospace;'>"
+                    "Estructura 2D (Esquelética)</div>"
+                    f"{svg_2d}</div>"
                 )
+                st.markdown(html_2d, unsafe_allow_html=True)
         except Exception as e:
             st.error(f"Error en renderizado 3D: {e}")
 
